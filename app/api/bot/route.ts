@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Telegraf } from "telegraf";
+import { extractTask } from "@/lib/extractTask";
 
 // Инициализация бота
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || "");
@@ -14,40 +15,18 @@ bot.on("text", async (ctx) => {
       return;
     }
 
-    // Определяем базовый URL для внутреннего запроса
-    let baseUrl: string;
-    if (process.env.NEXT_PUBLIC_BASE_URL) {
-      baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-    } else if (process.env.VERCEL_URL) {
-      baseUrl = `https://${process.env.VERCEL_URL}`;
-    } else {
-      // Для локальной разработки
-      baseUrl = "http://localhost:3000";
-    }
+    // Используем общую функцию извлечения задачи напрямую
+    const result = await extractTask(text, chatId);
 
-    // Делаем запрос к нашему API /api/ai/extract
-    const extractResponse = await fetch(`${baseUrl}/api/ai/extract`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text: text,
-        chat_id: chatId,
-      }),
-    });
-
-    if (!extractResponse.ok) {
-      const errorText = await extractResponse.text();
-      console.error("Error calling /api/ai/extract:", errorText);
+    // Если произошла ошибка
+    if (!result.success) {
+      console.error("Error extracting task:", result.error, result.details);
       await ctx.reply("❌ Произошла ошибка при обработке сообщения.");
       return;
     }
 
-    const extractData = await extractResponse.json();
-
     // Если ИИ подтверждает задачу, отвечаем пользователю
-    if (extractData.success && extractData.is_task) {
+    if (result.is_task) {
       await ctx.reply("✅ Задача принята!");
     }
     // Если это не задача, ничего не отвечаем
