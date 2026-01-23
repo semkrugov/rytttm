@@ -1,29 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractTask } from "@/lib/extractTask";
+import { extractTaskFromText } from "@/lib/extractTask";
 
 export async function POST(request: NextRequest) {
   try {
     // Парсинг тела запроса
     const body = await request.json();
-    const { text, chat_id } = body;
+    const { text } = body;
 
-    // Вызываем общую функцию извлечения задачи
-    const result = await extractTask(text, chat_id);
-
-    // Преобразуем результат в HTTP ответ
-    if (!result.success) {
-      const statusCode = result.error?.includes("not configured") ? 500 : 
-                        result.error?.includes("Missing or invalid") ? 400 : 500;
+    if (!text || typeof text !== "string") {
       return NextResponse.json(
-        {
-          error: result.error,
-          details: result.details,
-        },
-        { status: statusCode }
+        { error: "Missing or invalid 'text' parameter" },
+        { status: 400 }
       );
     }
 
-    // Возвращаем успешный результат
+    // Вызываем extractTaskFromText
+    const result = await extractTaskFromText({
+      text,
+      currentDatetimeIso: new Date().toISOString(),
+      timezone: "Asia/Almaty",
+    });
+
+    // Возвращаем результат
     return NextResponse.json(result);
   } catch (error) {
     console.error("Error in /api/ai/extract:", error);
