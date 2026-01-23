@@ -6,6 +6,15 @@ const genAI = new GoogleGenerativeAI(
   process.env.GEMINI_API_KEY || ""
 );
 
+// Массив кандидатов моделей для fallback
+const MODEL_CANDIDATES = [
+  "gemini-flash-latest",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
+  "gemini-pro",
+  "gemini-1.0-pro",
+];
+
 interface AIResponse {
   is_task: boolean;
   title?: string;
@@ -73,11 +82,50 @@ export async function extractTask(
 
 Ответ должен быть только валидным JSON, без дополнительного текста или markdown-разметки.`;
 
-    // Вызов Gemini AI
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let aiText = response.text();
+    // Пробуем каждую модель из кандидатов
+    let aiText: string | null = null;
+    let lastError: Error | null = null;
+
+    for (const modelName of MODEL_CANDIDATES) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        aiText = response.text();
+        // Успешно получили ответ - выходим из цикла
+        break;
+      } catch (error: any) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // Проверяем, является ли это ошибкой 404 (модель не найдена)
+        const is404 = 
+          error?.status === 404 ||
+          error?.code === 404 ||
+          error?.message?.includes("404") ||
+          error?.message?.includes("not found") ||
+          error?.message?.includes("NotFound");
+
+        if (is404) {
+          // Модель не найдена - пробуем следующую
+          console.warn(`Model ${modelName} not found (404), trying next candidate...`);
+          continue;
+        } else {
+          // Другая ошибка - логируем и пробуем следующую модель
+          console.warn(`Error with model ${modelName}:`, error?.message || error);
+          continue;
+        }
+      }
+    }
+
+    // Если все модели упали
+    if (!aiText) {
+      console.error("All Gemini models failed. Last error:", lastError);
+      return {
+        success: true,
+        is_task: false,
+        message: "AI models unavailable",
+      };
+    }
 
     // Очистка ответа от markdown-разметки (```json, ```, и т.д.)
     aiText = aiText.trim();
