@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Telegram Theme Variables */
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #000000;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-button-color: #3390ec;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #f1f1f1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tg-theme-bg-color: #212121;
+    --tg-theme-text-color: #ffffff;
+    --tg-theme-hint-color: #707579;
+    --tg-theme-button-color: #5288c1;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #181818;
+    --tg-nav-bg-color: rgba(33, 33, 33, 0.85);
+    --tg-nav-border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+:root {
+  --tg-nav-bg-color: rgba(255, 255, 255, 0.85);
+  --tg-nav-border-color: rgba(0, 0, 0, 0.05);
+}
+
+@layer base {
+  body {
+    @apply bg-[var(--tg-theme-bg-color)] text-[var(--tg-theme-text-color)];
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Safe area insets for mobile */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+@layer utilities {
+  /* Custom easing functions for animations */
+  .ease-out-expo {
+    transition-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  .ease-out-quart {
+    transition-timing-function: cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+
+  .ease-in-out-quint {
+    transition-timing-function: cubic-bezier(0.86, 0, 0.07, 1);
+  }
+
+  /* Hardware acceleration utilities */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform, opacity;
+  }
+
+  /* Backdrop blur with performance limit */
+  .backdrop-blur-safe {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+}
+
+/* Animation performance optimizations */
+@layer components {
+  /* Ensure animations only use transform and opacity */
+  .animate-transform-opacity {
+    transition-property: transform, opacity;
+    transition-duration: 200ms, 200ms;
+    transition-timing-function: cubic-bezier(0.19, 1, 0.22, 1), cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  /* Fast UI transitions (200ms-400ms) */
+  .transition-fast {
+    transition-duration: 200ms;
+  }
+
+  .transition-medium {
+    transition-duration: 300ms;
+  }
+
+  .transition-normal {
+    transition-duration: 400ms;
+  }
+}
