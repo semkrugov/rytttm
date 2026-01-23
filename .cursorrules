@@ -1,0 +1,55 @@
+---
+description: Guidelines for building a Telegram Mini App Task Tracker with performant animations and clean code.
+globs: "**/*.{tsx,jsx,css,ts}"
+alwaysApply: true
+---
+
+# Project Context
+You are building a premium Telegram Mini App Task Tracker.
+Stack: Next.js (App Router), Tailwind CSS, Framer Motion, Radix UI, Lucide React, and Supabase.
+
+# 1. Animation Best Practices (CORE RULES)
+
+## Easing Functions
+Use these custom cubic-bezier functions for a natural, premium feel:
+- **ease-out-expo (Entering/Interactions):** `cubic-bezier(0.19, 1, 0.22, 1)`
+- **ease-out-quart:** `cubic-bezier(0.165, 0.84, 0.44, 1)`
+- **ease-in-out-quint:** `cubic-bezier(0.86, 0, 0.07, 1)`
+
+## Performance & Hardware Acceleration
+- **Always prefer** `transform` and `opacity` for animations.
+- **Hardware acceleration:** In Framer Motion, prefer `style={{ transform: "translateX(100px)" }}` over `animate={{ x: 100 }}` for complex lists.
+- **Avoid:** Animating `top`, `left`, `width`, `height`. Use `scale` and `translate` instead.
+- **Blur:** Keep backdrop-blur values ≤ 20px for mobile performance.
+
+## Timing
+- **Fast UI:** No animation should exceed 1s. Most transitions should be 200ms-400ms.
+- **Springs:** Use spring animations for natural feel (e.g., `type: "spring", stiffness: 300, damping: 30`). Avoid high-bounce springs unless for drag gestures.
+
+# 2. Telegram Mini App Specifics
+
+## Mobile-First UI
+- Implement **Haptic Feedback** using `@twa-dev/sdk` on:
+  - Checkbox toggles (`impactOccurred('light')`)
+  - Button clicks (`impactOccurred('medium')`)
+  - Task deletion/Swipe (`notificationOccurred('success')`)
+- Use Telegram CSS variables for colors:
+  - Background: `var(--tg-theme-bg-color)`
+  - Text: `var(--tg-theme-text-color)`
+  - Hint: `var(--tg-theme-hint-color)`
+  - Button: `var(--tg-theme-button-color)`
+
+## Layout
+- Use `safe-area-inset` concepts for mobile headers and bottom navigations.
+- Bottom Navigation should be fixed and use `backdrop-filter: blur`.
+
+# 3. Coding Guidelines
+
+- **Lucide React:** Use for all icons.
+- **Shadcn UI:** Follow the component structure but ensure all components are wrapped in `framer-motion` for entry animations.
+- **Components:** Prefer functional components with TypeScript.
+- **Stagger:** When rendering lists (tasks/projects), always use `framer-motion` variants to stagger children appearance.
+
+# 4. Radix UI + Framer Motion
+- Use `asChild` prop with `motion` components.
+- Wrap Dialogs/Sheets in `AnimatePresence` for exit animations.
