@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { haptics } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
+import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 
 interface ProjectMember {
   user_id: string;
@@ -29,23 +30,54 @@ interface ProjectPageClientProps {
 
 export default function ProjectPageClient({ projectId }: ProjectPageClientProps) {
   const router = useRouter();
+  const { user } = useTelegramAuth();
 
   const [project, setProject] = useState<any>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
-    if (projectId) {
+    if (projectId && user?.id) {
       loadProjectData();
+    } else if (projectId && !user?.id) {
+      // Если пользователь не загружен, ждем
+      setLoading(true);
     }
-  }, [projectId]);
+  }, [projectId, user?.id]);
 
   const loadProjectData = async () => {
     try {
       setLoading(true);
+      setAccessDenied(false);
+
+      // Проверяем права доступа: является ли пользователь участником проекта
+      if (!user?.id) {
+        setAccessDenied(true);
+        setLoading(false);
+        return;
+      }
+
+      const { data: membershipData, error: membershipError } = await supabase
+        .from("project_members")
+        .select("user_id")
+        .eq("project_id", projectId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (membershipError && membershipError.code !== "PGRST116") {
+        console.error("Error checking membership:", membershipError);
+      }
+
+      // Если пользователь не является участником проекта
+      if (!membershipData) {
+        setAccessDenied(true);
+        setLoading(false);
+        return;
+      }
 
       // Загружаем проект
       const { data: projectData, error: projectError } = await supabase
@@ -202,6 +234,49 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
     return (
       <div className="min-h-screen bg-[var(--tg-theme-bg-color)] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-[var(--tg-theme-button-color)] animate-spin" />
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
+        <div className="flex items-center justify-between px-4 pt-4 pb-6">
+          <button
+            onClick={() => router.push("/")}
+            className="p-2 rounded-lg hover:bg-[var(--tg-theme-secondary-bg-color)] transition-colors"
+          >
+            <ArrowLeft
+              className="w-6 h-6 text-[var(--tg-theme-text-color)]"
+              strokeWidth={2}
+            />
+          </button>
+        </div>
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.3,
+              ease: [0.19, 1, 0.22, 1],
+            }}
+            className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-8 text-center max-w-md"
+          >
+            <h2 className="text-lg font-semibold text-[var(--tg-theme-text-color)] mb-2">
+              Доступ запрещен
+            </h2>
+            <p className="text-sm text-[var(--tg-theme-hint-color)]">
+              У тебя нет доступа к этому проекту. Ты должен быть участником проекта, чтобы просматривать его.
+            </p>
+            <button
+              onClick={() => router.push("/")}
+              className="mt-6 px-6 py-2 bg-[var(--tg-theme-button-color)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Вернуться на главную
+            </button>
+          </motion.div>
+        </div>
+        <BottomNavigation />
       </div>
     );
   }
