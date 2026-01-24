@@ -104,19 +104,20 @@ export const POST = async (request: NextRequest) => {
  * Создает проект, если его еще нет
  */
 async function ensureProject(projectId: string, title: string): Promise<void> {
+  console.log("[BOT] ensureProject", { projectId, title });
+
   const { error } = await supabase
     .from("projects")
     .upsert(
       {
         id: projectId,
         title: title,
-        source: "telegram",
       },
       { onConflict: "id" }
     );
 
   if (error) {
-    console.error(`[BOT] Error ensuring project ${projectId}:`, error);
+    console.error("[BOT] Error ensuring project", projectId, error);
   }
 }
 
