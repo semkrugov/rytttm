@@ -1,13 +1,60 @@
-import TaskDetailPageClient from "./TaskDetailPageClient";
+"use client";
 
-export default async function TaskDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  return <TaskDetailPageClient taskId={id} />;
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+  ArrowLeft,
+  Paperclip,
+  MessageCircle,
+  Calendar,
+  Play,
+  Square,
+} from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { haptics } from "@/lib/telegram";
+import { cn } from "@/lib/utils";
+
+interface TaskDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  deadline: string | null;
+  assignee_id: string | null;
+  creator_id: string | null;
+  confidence_score: number | null;
+  time_tracking: number | null;
+  is_tracking: boolean | null;
 }
+
+interface AssigneeProfile {
+  id: string;
+  username: string | null;
+  avatar_url: string | null;
+  display_name: string | null;
+  position: string | null;
+}
+
+const STATUS_MAP: Record<string, string> = {
+  todo: "TODO",
+  doing: "IN PROGRESS",
+  done: "DONE",
+};
+
+const STATUS_REVERSE_MAP: Record<string, string> = {
+  TODO: "todo",
+  "IN PROGRESS": "doing",
+  DONE: "done",
+};
+
+interface TaskDetailPageClientProps {
+  taskId: string;
+}
+
+export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientProps) {
+  const router = useRouter();
 
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [assignee, setAssignee] = useState<AssigneeProfile | null>(null);

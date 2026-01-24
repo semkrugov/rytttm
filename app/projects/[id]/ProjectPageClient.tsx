@@ -1,13 +1,34 @@
-import ProjectPageClient from "./ProjectPageClient";
+"use client";
 
-export default async function ProjectPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  return <ProjectPageClient projectId={id} />;
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import BottomNavigation from "@/components/BottomNavigation";
+import TaskCard from "@/components/TaskCard";
+import TaskCardSkeleton from "@/components/TaskCardSkeleton";
+import { Task, TaskStatus } from "@/types";
+import { supabase } from "@/lib/supabase";
+import { animationVariants } from "@/lib/animations";
+import { haptics } from "@/lib/telegram";
+import { cn } from "@/lib/utils";
+
+interface ProjectMember {
+  user_id: string;
+  profiles: {
+    display_name: string | null;
+    avatar_url: string | null;
+    username: string | null;
+    position: string | null;
+  } | null;
 }
+
+interface ProjectPageClientProps {
+  projectId: string;
+}
+
+export default function ProjectPageClient({ projectId }: ProjectPageClientProps) {
+  const router = useRouter();
 
   const [project, setProject] = useState<any>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
