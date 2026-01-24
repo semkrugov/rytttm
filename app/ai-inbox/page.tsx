@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -15,6 +15,13 @@ export default function AIInboxPage() {
   const [items, setItems] = useState<AIInboxItem[]>(mockAIInboxItems);
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    // Отмечаем, что анимация уже проиграна после первого рендера
+    const timer = setTimeout(() => setHasAnimated(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleConfirm = (id: string) => {
     if (typeof window !== "undefined") {
@@ -55,7 +62,7 @@ export default function AIInboxPage() {
         }}
       >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={hasAnimated ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
             duration: 0.4,

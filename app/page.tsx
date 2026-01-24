@@ -27,6 +27,13 @@ export default function Home() {
   const [projectsCount, setProjectsCount] = useState(0);
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("my");
   const channelRef = useRef<any>(null);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    // Отмечаем, что анимация уже проиграна после первого рендера
+    const timer = setTimeout(() => setHasAnimated(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Отладка статуса пользователя
   useEffect(() => {
@@ -246,7 +253,7 @@ export default function Home() {
           ) : (
             <motion.div
               key="content"
-              initial={{ opacity: 0, y: 20 }}
+              initial={hasAnimated ? false : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{

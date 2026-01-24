@@ -127,6 +127,13 @@ export default function ProfilePage() {
   const { user, loading: authLoading } = useTelegramAuth();
   const [editingField, setEditingField] = useState<"username" | "position" | null>(null);
   const [profileData, setProfileData] = useState(user);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    // Отмечаем, что анимация уже проиграна после первого рендера
+    const timer = setTimeout(() => setHasAnimated(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     setProfileData(user);
@@ -204,7 +211,7 @@ export default function ProfilePage() {
         }}
       >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={hasAnimated ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
             duration: 0.4,
