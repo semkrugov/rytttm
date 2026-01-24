@@ -6,57 +6,46 @@ import { supabase } from "@/lib/supabase";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Функция для поиска профиля по имени с умной логикой
- * Пытается найти по полному имени, если не находит - пробует по корню
+ * Функция для поиска профиля по имени
+ * Основной поиск по username, fallback по display_name
  */
 async function findProfileByName(name: string): Promise<string | null> {
   // Очищаем имя от @ и лишних пробелов
-  let cleanName = name.trim().replace(/^@/, "").toLowerCase();
+  const cleanName = name.replace(/@/g, "").trim();
   
   console.log("Поиск профиля для имени:", cleanName);
 
-  // Первая попытка: поиск по полному имени
+  // Основной поиск по username (точное совпадение без учета регистра)
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("id")
-    .or(`username.ilike.%${cleanName}%,display_name.ilike.%${cleanName}%`)
-    .limit(1)
+    .ilike("username", cleanName)
     .maybeSingle();
 
   if (profile) {
-    console.log("Профиль найден по полному имени:", cleanName, "->", profile.id);
+    console.log("Профиль найден по username:", cleanName, "->", profile.id);
     return profile.id;
   }
 
   if (error && error.code !== "PGRST116") {
-    console.error("Ошибка при поиске профиля:", error);
+    console.error("Ошибка при поиске по username:", error);
   }
 
-  // Вторая попытка: отрезаем окончания и ищем по корню
-  // Убираем типичные окончания уменьшительно-ласкательных имен
-  const rootName = cleanName
-    .replace(/(я|ёк|енька|юша|уша|ик|чик|ка|енька|ечка)$/i, "")
-    .replace(/(а|я|о|е|и|ы|у|ю|ь)$/i, "");
+  // Fallback: поиск по display_name, если по username не найдено
+  console.log("Поиск по display_name (fallback):", cleanName);
+  const { data: displayProfile, error: displayError } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("display_name", cleanName)
+    .maybeSingle();
 
-  // Если корень отличается от исходного имени и достаточно длинный (минимум 2 символа)
-  if (rootName !== cleanName && rootName.length >= 2) {
-    console.log("Попытка поиска по корню:", rootName, "(исходное:", cleanName + ")");
-    
-    const { data: rootProfile, error: rootError } = await supabase
-      .from("profiles")
-      .select("id")
-      .or(`username.ilike.%${rootName}%,display_name.ilike.%${rootName}%`)
-      .limit(1)
-      .maybeSingle();
+  if (displayProfile) {
+    console.log("Профиль найден по display_name:", cleanName, "->", displayProfile.id);
+    return displayProfile.id;
+  }
 
-    if (rootProfile) {
-      console.log("Профиль найден по корню:", rootName, "->", rootProfile.id);
-      return rootProfile.id;
-    }
-
-    if (rootError && rootError.code !== "PGRST116") {
-      console.error("Ошибка при поиске по корню:", rootError);
-    }
+  if (displayError && displayError.code !== "PGRST116") {
+    console.error("Ошибка при поиске по display_name:", displayError);
   }
 
   console.log("Профиль не найден для имени:", cleanName);
