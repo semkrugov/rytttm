@@ -9,6 +9,7 @@ import Toast from "@/components/Toast";
 import { AIInboxItem } from "@/types";
 import { mockAIInboxItems } from "@/lib/mockData";
 import { haptics } from "@/lib/telegram";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -34,6 +35,7 @@ const itemVariants = {
 };
 
 export default function AIInboxPage() {
+  const hasAnimated = useHasAnimated();
   const [items, setItems] = useState<AIInboxItem[]>(mockAIInboxItems);
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState(false);
@@ -77,7 +79,7 @@ export default function AIInboxPage() {
         }}
       >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={hasAnimated ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
             duration: 0.4,
@@ -108,9 +110,9 @@ export default function AIInboxPage() {
 
           {/* Список предложений */}
           <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
+            variants={hasAnimated ? undefined : containerVariants}
+            initial={hasAnimated ? false : "hidden"}
+            animate={hasAnimated ? false : "visible"}
             className="mb-4"
           >
             <AnimatePresence mode="popLayout">
@@ -118,7 +120,9 @@ export default function AIInboxPage() {
                 items.map((item) => (
                   <motion.div
                     key={item.id}
-                    variants={itemVariants}
+                    variants={hasAnimated ? undefined : itemVariants}
+                    initial={hasAnimated ? false : undefined}
+                    animate={hasAnimated ? false : "visible"}
                     layout
                   >
                     <AIInboxCard
@@ -131,7 +135,7 @@ export default function AIInboxPage() {
               ) : (
                 <motion.div
                   key="empty"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={hasAnimated ? false : { opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{
