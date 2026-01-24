@@ -23,6 +23,12 @@ export const POST = async (request: NextRequest) => {
       return NextResponse.json({ ok: true });
     }
 
+    // Получаем данные пользователя из сообщения
+    const telegramUserId = body.message.from?.id;
+    if (!telegramUserId) {
+      return NextResponse.json({ ok: true });
+    }
+
     // Ищем или создаем проект
     const chatTitle = body.message.chat.title || `Chat ${chatId}`;
     const projectUuid = await ensureProject(chatId, chatTitle);
@@ -33,6 +39,14 @@ export const POST = async (request: NextRequest) => {
     }
 
     console.log(`Нашли проект с UUID: ${projectUuid}`);
+
+    // Обеспечиваем наличие профиля пользователя
+    const userProfileId = await ensureProfile(telegramUserId, body.message.from);
+
+    if (userProfileId) {
+      // Добавляем пользователя в участники проекта
+      await ensureProjectMember(projectUuid, userProfileId);
+    }
 
     // Вызываем наш API /api/ai/extract
     try {
@@ -106,32 +120,85 @@ async function ensureProject(chatId: number, title: string): Promise<string | nu
 }
 
 /**
- * Создает/обновляет участника проекта
+ * Создает профиль пользователя, если его еще нет, и возвращает его UUID
  */
-async function ensureProjectMember(
-  projectId: string,
-  user: {
+async function ensureProfile(
+  telegramUserId: number,
+  telegramUser: {
     id: number;
     username?: string;
     first_name?: string;
     last_name?: string;
   }
+): Promise<string | null> {
+  console.log("[BOT] ensureProfile", { telegramUserId });
+
+  // Ищем профиль по telegram_id
+  const { data: existingProfile, error: selectError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("telegram_id", telegramUserId)
+    .single();
+
+  if (existingProfile) {
+    console.log("[BOT] Profile found:", existingProfile.id);
+    return existingProfile.id;
+  }
+
+  if (selectError && selectError.code !== "PGRST116") {
+    console.error("[BOT] Error finding profile:", selectError);
+    return null;
+  }
+
+  // Если профиля нет, создаем его
+  const { data: newProfile, error: insertError } = await supabase
+    .from("profiles")
+    .insert({
+      telegram_id: telegramUserId,
+      username: telegramUser.username || null,
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    console.error("[BOT] Error creating profile", telegramUserId, insertError);
+    return null;
+  }
+
+  console.log("[BOT] Profile created:", newProfile.id);
+  return newProfile.id;
+}
+
+/**
+ * Создает/обновляет участника проекта в таблице project_members
+ */
+async function ensureProjectMember(
+  projectId: string,
+  userId: string
 ): Promise<void> {
+  console.log("[BOT] ensureProjectMember", { projectId, userId });
+
+  // Используем upsert с composite primary key
   const { error } = await supabase
     .from("project_members")
     .upsert(
       {
         project_id: projectId,
-        telegram_user_id: user.id,
-        username: user.username || null,
-        first_name: user.first_name || null,
-        last_name: user.last_name || null,
-        role: "member",
+        user_id: userId,
       },
-      { onConflict: "project_id,telegram_user_id" }
+      {
+        onConflict: "project_id,user_id",
+      }
     );
 
   if (error) {
-    console.error(`[BOT] Error ensuring project member ${user.id} in project ${projectId}:`, error);
+    console.error(
+      `[BOT] Error ensuring project member ${userId} in project ${projectId}:`,
+      error
+    );
+  } else {
+    console.log(
+      `[BOT] Project member ensured: user ${userId} in project ${projectId}`
+    );
   }
 }
