@@ -5,6 +5,64 @@ import { supabase } from "@/lib/supabase";
 // UUID regex для проверки
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Функция для поиска профиля по имени с умной логикой
+ * Пытается найти по полному имени, если не находит - пробует по корню
+ */
+async function findProfileByName(name: string): Promise<string | null> {
+  // Очищаем имя от @ и лишних пробелов
+  let cleanName = name.trim().replace(/^@/, "").toLowerCase();
+  
+  console.log("Поиск профиля для имени:", cleanName);
+
+  // Первая попытка: поиск по полному имени
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .or(`username.ilike.%${cleanName}%,display_name.ilike.%${cleanName}%`)
+    .limit(1)
+    .maybeSingle();
+
+  if (profile) {
+    console.log("Профиль найден по полному имени:", cleanName, "->", profile.id);
+    return profile.id;
+  }
+
+  if (error && error.code !== "PGRST116") {
+    console.error("Ошибка при поиске профиля:", error);
+  }
+
+  // Вторая попытка: отрезаем окончания и ищем по корню
+  // Убираем типичные окончания уменьшительно-ласкательных имен
+  const rootName = cleanName
+    .replace(/(я|ёк|енька|юша|уша|ик|чик|ка|енька|ечка)$/i, "")
+    .replace(/(а|я|о|е|и|ы|у|ю|ь)$/i, "");
+
+  // Если корень отличается от исходного имени и достаточно длинный (минимум 2 символа)
+  if (rootName !== cleanName && rootName.length >= 2) {
+    console.log("Попытка поиска по корню:", rootName, "(исходное:", cleanName + ")");
+    
+    const { data: rootProfile, error: rootError } = await supabase
+      .from("profiles")
+      .select("id")
+      .or(`username.ilike.%${rootName}%,display_name.ilike.%${rootName}%`)
+      .limit(1)
+      .maybeSingle();
+
+    if (rootProfile) {
+      console.log("Профиль найден по корню:", rootName, "->", rootProfile.id);
+      return rootProfile.id;
+    }
+
+    if (rootError && rootError.code !== "PGRST116") {
+      console.error("Ошибка при поиске по корню:", rootError);
+    }
+  }
+
+  console.log("Профиль не найден для имени:", cleanName);
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Парсинг тела запроса
@@ -45,7 +103,11 @@ export async function POST(request: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const prompt = `Ты — робот. Проанализируй сообщение: "${text}". Верни ТОЛЬКО JSON объект. Если это задача: {"is_task": true, "title": "название", "priority": "high", "assignee_name": "имя", "confidence_score": 85}. Если нет: {"is_task": false}. Не пиши ничего, кроме JSON.`;
+    const prompt = `Ты — робот. Проанализируй сообщение: "${text}". Верни ТОЛЬКО JSON объект. Если это задача: {"is_task": true, "title": "название", "priority": "high", "assignee_name": "имя", "confidence_score": 85}. Если нет: {"is_task": false}. 
+
+ВАЖНО для assignee_name: При поиске assignee_name учитывай уменьшительно-ласкательные имена и ники. Например, если в тексте "Ваня", "Ванёк" или "Vanya", а в контексте понятно, что это исполнитель — выдели его основное имя (Иван) или юзернейм. Возвращай имя в именительном падеже без символа @.
+
+Не пиши ничего, кроме JSON.`;
 
     const result = await model.generateContent(prompt);
     const response = result.response;
@@ -92,36 +154,7 @@ export async function POST(request: NextRequest) {
         // Находим UUID исполнителя (assignee_id), если указан
         let assigneeId: string | null = null;
         if (parsedResult.assignee_name) {
-          const assigneeValue = parsedResult.assignee_name.trim();
-
-          // Если указан @username
-          if (assigneeValue.startsWith("@")) {
-            const username = assigneeValue.substring(1);
-            const { data: assigneeProfile } = await supabase
-              .from("profiles")
-              .select("id")
-              .or(`username.ilike.%${username}%,display_name.ilike.%${username}%`)
-              .single();
-
-            if (assigneeProfile) {
-              assigneeId = assigneeProfile.id;
-            } else {
-              console.warn(`Profile not found for username: ${username}`);
-            }
-          } else {
-            // Если указано имя без @, ищем по username и display_name с ilike
-            const { data: assigneeProfile } = await supabase
-              .from("profiles")
-              .select("id")
-              .or(`username.ilike.%${assigneeValue}%,display_name.ilike.%${assigneeValue}%`)
-              .single();
-
-            if (assigneeProfile) {
-              assigneeId = assigneeProfile.id;
-            } else {
-              console.warn(`Profile not found for assignee: ${assigneeValue}`);
-            }
-          }
+          assigneeId = await findProfileByName(parsedResult.assignee_name);
         }
 
         // Обработка confidence_score
