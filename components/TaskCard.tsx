@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { Play, Pause, Calendar, Check } from "lucide-react";
 import { Task, TaskStatus } from "@/types";
@@ -23,7 +23,6 @@ export default function TaskCard({
   onStatusChange,
   onTimeTrackingToggle,
 }: TaskCardProps) {
-  const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const x = useMotionValue(0);
@@ -72,7 +71,9 @@ export default function TaskCard({
     setIsDragging(true);
   };
 
-  const handleActionClick = () => {
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     if (typeof window !== "undefined") {
       haptics.success();
     }
@@ -136,18 +137,19 @@ export default function TaskCard({
       </motion.div>
 
       {/* Основная карточка задачи */}
-      <motion.div
-        onClick={() => {
-          if (!isDragging) {
-            router.push(`/tasks/${task.id}`);
-          }
-        }}
-        className={cn(
-          "bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-4",
-          "relative z-10 cursor-pointer",
-          isDragging && "shadow-lg"
-        )}
-      >
+      <Link href={`/tasks/${task.id}`} className="block">
+        <motion.div
+          className={cn(
+            "bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-4",
+            "relative z-10 cursor-pointer",
+            isDragging && "shadow-lg"
+          )}
+          whileTap={{ scale: 0.98 }}
+          transition={{
+            duration: 0.1,
+            ease: [0.19, 1, 0.22, 1],
+          }}
+        >
         <div className="flex items-start justify-between mb-3 gap-2">
           <h3 className="text-sm font-medium text-[var(--tg-theme-text-color)] line-clamp-2 flex-1">
             {task.title}
@@ -202,7 +204,8 @@ export default function TaskCard({
             </div>
           )}
         </div>
-      </motion.div>
+        </motion.div>
+      </Link>
     </motion.div>
   );
 }
