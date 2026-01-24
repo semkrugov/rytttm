@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 type TaskViewMode = "my" | "all";
 
 export default function Home() {
+  const router = useRouter();
   const { user, loading: authLoading } = useTelegramAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -191,8 +192,7 @@ export default function Home() {
   };
 
   const handleProjectClick = (projectId: string) => {
-    // TODO: Navigate to project page
-    console.log("Project clicked:", projectId);
+    router.push(`/projects/${projectId}`);
   };
 
   // Показываем загрузчик во время авторизации
