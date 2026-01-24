@@ -11,70 +11,27 @@ import { Task, TaskStatus } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { haptics } from "@/lib/telegram";
-import WebApp from "@twa-dev/sdk";
 
 export default function TasksPage() {
   const [activeStatus, setActiveStatus] = useState<TaskStatus>("todo");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const [projectId, setProjectId] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
-
-  // Определяем project_id из Telegram чата
-  useEffect(() => {
-    const determineProjectId = async () => {
-      if (typeof window === "undefined") return;
-
-      try {
-        // Пытаемся получить chat_id из Telegram WebApp
-        const chatId = (WebApp.initDataUnsafe as any)?.chat?.id;
-        
-        if (chatId) {
-          // Ищем проект по telegram_chat_id
-          const { data: project, error } = await supabase
-            .from("projects")
-            .select("id")
-            .eq("telegram_chat_id", chatId)
-            .single();
-
-          if (error) {
-            console.error("Error finding project:", error);
-            return;
-          }
-
-          if (project) {
-            console.log("Определен project_id из Telegram чата:", project.id);
-            setProjectId(project.id);
-          }
-        } else {
-          console.warn("Chat ID не найден в Telegram WebApp. Показываем все задачи.");
-        }
-      } catch (error) {
-        console.error("Error determining project ID:", error);
-      }
-    };
-
-    determineProjectId();
-  }, []);
 
   // Загрузка задач из Supabase
   useEffect(() => {
-    if (projectId !== null) {
-      loadTasks();
-    }
-  }, [projectId]);
+    loadTasks();
+  }, []);
 
   // Realtime подписка на изменения задач
   useEffect(() => {
-    if (!projectId) return;
-
     // Отключаем предыдущую подписку, если есть
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
 
-    // Создаем новую подписку
+    // Создаем новую подписку на все задачи
     const channel = supabase
       .channel("public:tasks")
       .on(
@@ -83,7 +40,6 @@ export default function TasksPage() {
           event: "*",
           schema: "public",
           table: "tasks",
-          filter: projectId ? `project_id=eq.${projectId}` : undefined,
         },
         (payload) => {
           console.log("Realtime событие:", payload);
@@ -99,23 +55,17 @@ export default function TasksPage() {
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [projectId]);
+  }, []);
 
   const loadTasks = async () => {
     try {
       setLoading(true);
       
-      let query = supabase
+      // Загружаем все задачи с информацией о проектах
+      const { data, error } = await supabase
         .from("tasks")
-        .select("*")
+        .select("*, projects(title)")
         .order("created_at", { ascending: false });
-
-      // Фильтруем по project_id, если он определен
-      if (projectId) {
-        query = query.eq("project_id", projectId);
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -127,6 +77,7 @@ export default function TasksPage() {
         id: task.id,
         title: task.title,
         project: task.project_id,
+        projectTitle: task.projects?.title || "Без проекта",
         deadline: task.deadline
           ? new Date(task.deadline).toLocaleDateString("ru-RU")
           : undefined,

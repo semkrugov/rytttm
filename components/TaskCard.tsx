@@ -5,7 +5,7 @@ import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { Play, Pause, Calendar, Check } from "lucide-react";
 import { Task, TaskStatus } from "@/types";
 import { haptics } from "@/lib/telegram";
-import { cn } from "@/lib/utils";
+import { cn, generateColorFromString } from "@/lib/utils";
 import { animationVariants } from "@/lib/animations";
 
 interface TaskCardProps {
@@ -141,9 +141,28 @@ export default function TaskCard({
           isDragging && "shadow-lg"
         )}
       >
-        <h3 className="text-sm font-medium text-[var(--tg-theme-text-color)] mb-3 line-clamp-2">
-          {task.title}
-        </h3>
+        <div className="flex items-start justify-between mb-3 gap-2">
+          <h3 className="text-sm font-medium text-[var(--tg-theme-text-color)] line-clamp-2 flex-1">
+            {task.title}
+          </h3>
+          {/* Бейдж проекта */}
+          {task.projectTitle && (
+            <motion.span
+              className="text-xs px-2 py-0.5 rounded-full text-white font-medium whitespace-nowrap flex-shrink-0"
+              style={{
+                backgroundColor: generateColorFromString(task.projectTitle),
+              }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{
+                duration: 0.2,
+                ease: [0.19, 1, 0.22, 1],
+              }}
+            >
+              {task.projectTitle}
+            </motion.span>
+          )}
+        </div>
 
         <div className="flex items-center justify-between">
           {/* Тайм-трекинг */}

@@ -3,12 +3,13 @@
 import { motion } from "framer-motion";
 import { animationVariants } from "@/lib/animations";
 import TaskCheckbox from "./TaskCheckbox";
-import { cn } from "@/lib/utils";
+import { cn, generateColorFromString } from "@/lib/utils";
 
 export interface Task {
   id: string;
   title: string;
   project?: string;
+  projectTitle?: string;
   deadline?: string;
   completed: boolean;
 }
@@ -64,16 +65,29 @@ export default function FocusTasks({ tasks, onTaskToggle }: FocusTasksProps) {
               >
                 {task.title}
               </p>
-              {task.project && (
-                <p className="text-xs text-[var(--tg-theme-hint-color)] mt-1">
-                  {task.project}
-                </p>
-              )}
-              {task.deadline && (
-                <p className="text-xs text-[var(--tg-theme-hint-color)] mt-1">
-                  {task.deadline}
-                </p>
-              )}
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {task.projectTitle && (
+                  <motion.span
+                    className="text-xs px-2 py-0.5 rounded-full text-white font-medium"
+                    style={{
+                      backgroundColor: generateColorFromString(task.projectTitle),
+                    }}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                      duration: 0.2,
+                      ease: [0.19, 1, 0.22, 1],
+                    }}
+                  >
+                    {task.projectTitle}
+                  </motion.span>
+                )}
+                {task.deadline && (
+                  <p className="text-xs text-[var(--tg-theme-hint-color)]">
+                    {task.deadline}
+                  </p>
+                )}
+              </div>
             </div>
           </motion.div>
         ))}

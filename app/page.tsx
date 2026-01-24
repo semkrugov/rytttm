@@ -12,7 +12,6 @@ import { mockNotifications } from "@/lib/mockData";
 import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
-import WebApp from "@twa-dev/sdk";
 
 export default function Home() {
   const { user, loading: authLoading } = useTelegramAuth();
@@ -21,92 +20,38 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeTasksCount, setActiveTasksCount] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
-  const [projectId, setProjectId] = useState<string | null>(null);
 
   // Отладка статуса пользователя
   useEffect(() => {
     console.log("User status:", user);
   }, [user]);
 
-  // Определяем project_id из Telegram чата
   useEffect(() => {
-    const determineProjectId = async () => {
-      if (typeof window === "undefined") return;
-
-      try {
-        // Пытаемся получить chat_id из Telegram WebApp
-        const chatId = (WebApp.initDataUnsafe as any)?.chat?.id;
-        
-        if (chatId) {
-          // Ищем проект по telegram_chat_id
-          const { data: project, error } = await supabase
-            .from("projects")
-            .select("id")
-            .eq("telegram_chat_id", chatId)
-            .single();
-
-          if (error) {
-            console.error("Error finding project:", error);
-            return;
-          }
-
-          if (project) {
-            console.log("Определен project_id из Telegram чата:", project.id);
-            setProjectId(project.id);
-          }
-        } else {
-          console.warn("Chat ID не найден в Telegram WebApp. Показываем все задачи.");
-        }
-      } catch (error) {
-        console.error("Error determining project ID:", error);
-      }
-    };
-
-    determineProjectId();
+    loadData();
   }, []);
-
-  useEffect(() => {
-    if (projectId !== null) {
-      loadData();
-    }
-  }, [projectId]);
 
   const loadData = async () => {
     try {
       setLoading(true);
 
-      // Загружаем задачи (топ-3 для "Мой Фокус")
-      // В базе нет поля status, поэтому загружаем все задачи
-      let tasksQuery = supabase
+      // Загружаем задачи с информацией о проектах (топ-3 для "Мой Фокус")
+      // Используем join для получения названия проекта
+      const { data: tasksData, error: tasksError } = await supabase
         .from("tasks")
-        .select("*")
+        .select("*, projects(title)")
         .order("created_at", { ascending: false })
         .limit(3);
-
-      // Фильтруем по project_id, если он определен
-      if (projectId) {
-        tasksQuery = tasksQuery.eq("project_id", projectId);
-      }
-
-      const { data: tasksData, error: tasksError } = await tasksQuery;
 
       if (tasksError) throw tasksError;
 
       console.log("Загруженные задачи на главной:", tasksData);
 
       // Загружаем все задачи для подсчета
-      let countQuery = supabase
+      const { count: activeCount } = await supabase
         .from("tasks")
         .select("*", { count: "exact", head: true });
 
-      if (projectId) {
-        countQuery = countQuery.eq("project_id", projectId);
-      }
-
-      const { count: activeCount } = await countQuery;
-
       // Загружаем проекты
-      // В базе нет поля status, поэтому загружаем все проекты
       const { data: projectsData, error: projectsError } = await supabase
         .from("projects")
         .select("*")
@@ -125,6 +70,7 @@ export default function Home() {
         id: task.id,
         title: task.title,
         project: task.project_id,
+        projectTitle: task.projects?.title || "Без проекта",
         deadline: task.deadline
           ? new Date(task.deadline).toLocaleDateString("ru-RU")
           : undefined,

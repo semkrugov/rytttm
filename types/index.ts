@@ -4,6 +4,7 @@ export interface Task {
   id: string;
   title: string;
   project?: string;
+  projectTitle?: string; // Название проекта для отображения
   deadline?: string;
   deadlineTime?: string; // e.g., "12:00 | 25.01"
   status: TaskStatus;
