@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -12,6 +12,9 @@ import { mockNotifications } from "@/lib/mockData";
 import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import { cn } from "@/lib/utils";
+
+type TaskViewMode = "my" | "all";
 
 export default function Home() {
   const { user, loading: authLoading } = useTelegramAuth();
@@ -20,6 +23,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeTasksCount, setActiveTasksCount] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
+  const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("my");
+  const channelRef = useRef<any>(null);
 
   // Отладка статуса пользователя
   useEffect(() => {
@@ -27,8 +32,53 @@ export default function Home() {
   }, [user]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user) {
+      loadData();
+    }
+  }, [user, taskViewMode]);
+
+  // Realtime подписка на изменения задач
+  useEffect(() => {
+    if (!user) return;
+
+    // Отключаем предыдущую подписку, если есть
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    // Создаем новую подписку
+    const channel = supabase
+      .channel("public:tasks")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tasks",
+        },
+        (payload) => {
+          console.log("Realtime событие:", payload);
+          // Фильтруем на фронтенде, если показываем "Мои задачи"
+          if (taskViewMode === "my" && user.id) {
+            const task = payload.new as any;
+            if (task.assignee_id === user.id) {
+              loadData();
+            }
+          } else {
+            loadData();
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+  }, [user, taskViewMode]);
 
   const loadData = async () => {
     try {
@@ -36,20 +86,33 @@ export default function Home() {
 
       // Загружаем задачи с информацией о проектах (топ-3 для "Мой Фокус")
       // Используем join для получения названия проекта
-      const { data: tasksData, error: tasksError } = await supabase
+      let tasksQuery = supabase
         .from("tasks")
         .select("*, projects(title)")
         .order("created_at", { ascending: false })
         .limit(3);
 
+      // Фильтруем по assignee_id, если показываем "Мои задачи"
+      if (taskViewMode === "my" && user?.id) {
+        tasksQuery = tasksQuery.eq("assignee_id", user.id);
+      }
+
+      const { data: tasksData, error: tasksError } = await tasksQuery;
+
       if (tasksError) throw tasksError;
 
       console.log("Загруженные задачи на главной:", tasksData);
 
-      // Загружаем все задачи для подсчета
-      const { count: activeCount } = await supabase
+      // Загружаем все задачи для подсчета (с учетом фильтра)
+      let countQuery = supabase
         .from("tasks")
         .select("*", { count: "exact", head: true });
+
+      if (taskViewMode === "my" && user?.id) {
+        countQuery = countQuery.eq("assignee_id", user.id);
+      }
+
+      const { count: activeCount } = await countQuery;
 
       // Загружаем проекты
       const { data: projectsData, error: projectsError } = await supabase
@@ -199,8 +262,59 @@ export default function Home() {
                 />
               )}
 
+              {/* Переключатель "Мои задачи" / "Все задачи проекта" */}
+              <div className="mb-6">
+                <div className="flex gap-1 p-1 bg-[var(--tg-theme-secondary-bg-color)] rounded-xl">
+                  <button
+                    onClick={() => setTaskViewMode("my")}
+                    className={cn(
+                      "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all",
+                      taskViewMode === "my"
+                        ? "bg-[var(--tg-theme-button-color)] text-white"
+                        : "text-[var(--tg-theme-hint-color)] hover:text-[var(--tg-theme-text-color)]"
+                    )}
+                  >
+                    Мои задачи
+                  </button>
+                  <button
+                    onClick={() => setTaskViewMode("all")}
+                    className={cn(
+                      "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all",
+                      taskViewMode === "all"
+                        ? "bg-[var(--tg-theme-button-color)] text-white"
+                        : "text-[var(--tg-theme-hint-color)] hover:text-[var(--tg-theme-text-color)]"
+                    )}
+                  >
+                    Все задачи проекта
+                  </button>
+                </div>
+              </div>
+
               {/* Блок "Мой Фокус" */}
-              <FocusTasks tasks={tasks} onTaskToggle={handleTaskToggle} />
+              {tasks.length > 0 ? (
+                <FocusTasks tasks={tasks} onTaskToggle={handleTaskToggle} />
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.3,
+                    ease: [0.19, 1, 0.22, 1],
+                  }}
+                  className="mb-6"
+                >
+                  <h2 className="text-lg font-semibold text-[var(--tg-theme-text-color)] mb-4">
+                    Мой Фокус
+                  </h2>
+                  <div className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-8 text-center">
+                    <p className="text-sm text-[var(--tg-theme-hint-color)]">
+                      {taskViewMode === "my"
+                        ? "Для тебя пока нет задач. Отдохни или проверь общий список."
+                        : "Нет задач в проекте."}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
               {/* Блок "Проекты" */}
               <ProjectsList
