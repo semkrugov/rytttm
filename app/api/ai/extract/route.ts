@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const prompt = `Ты — робот. Проанализируй сообщение: "${text}". Верни ТОЛЬКО JSON объект. Если это задача: {"is_task": true, "title": "название", "priority": "high", "assignee_name": "имя"}. Если нет: {"is_task": false}. Не пиши ничего, кроме JSON.`;
+    const prompt = `Ты — робот. Проанализируй сообщение: "${text}". Верни ТОЛЬКО JSON объект. Если это задача: {"is_task": true, "title": "название", "priority": "high", "assignee_name": "имя", "confidence_score": 85}. Если нет: {"is_task": false}. Не пиши ничего, кроме JSON.`;
 
     const result = await model.generateContent(prompt);
     const response = result.response;
@@ -72,20 +72,20 @@ export async function POST(request: NextRequest) {
 
     // Если это задача, создаем её в Supabase
     if (parsedResult.is_task && parsedResult.title && projectId && message) {
-      const telegramChatId = message.chat?.id;
-      const telegramMessageId = message.message_id;
       const telegramUserId = message.from?.id;
 
-      if (telegramChatId && telegramMessageId && telegramUserId) {
+      if (telegramUserId) {
         // Находим UUID создателя задачи (creator_id)
         let creatorId: string | null = null;
-        const { data: creatorProfile } = await supabase
+        const { data: creatorProfile, error: creatorError } = await supabase
           .from("profiles")
           .select("id")
           .eq("telegram_id", telegramUserId)
           .single();
 
-        if (creatorProfile) {
+        if (creatorError && creatorError.code !== "PGRST116") {
+          console.error("Error finding creator profile:", creatorError);
+        } else if (creatorProfile) {
           creatorId = creatorProfile.id;
         }
 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
             const { data: assigneeProfile } = await supabase
               .from("profiles")
               .select("id")
-              .eq("username", username)
+              .or(`username.ilike.%${username}%,display_name.ilike.%${username}%`)
               .single();
 
             if (assigneeProfile) {
@@ -109,11 +109,11 @@ export async function POST(request: NextRequest) {
               console.warn(`Profile not found for username: ${username}`);
             }
           } else {
-            // Если указано имя без @, пытаемся найти по username
+            // Если указано имя без @, ищем по username и display_name с ilike
             const { data: assigneeProfile } = await supabase
               .from("profiles")
               .select("id")
-              .eq("username", assigneeValue)
+              .or(`username.ilike.%${assigneeValue}%,display_name.ilike.%${assigneeValue}%`)
               .single();
 
             if (assigneeProfile) {
@@ -121,6 +121,15 @@ export async function POST(request: NextRequest) {
             } else {
               console.warn(`Profile not found for assignee: ${assigneeValue}`);
             }
+          }
+        }
+
+        // Обработка confidence_score
+        let confidenceScore: number = 80; // Дефолтное значение
+        if (parsedResult.confidence_score !== undefined && parsedResult.confidence_score !== null) {
+          const score = parseInt(String(parsedResult.confidence_score), 10);
+          if (!isNaN(score) && score >= 0 && score <= 100) {
+            confidenceScore = score;
           }
         }
 
@@ -132,22 +141,32 @@ export async function POST(request: NextRequest) {
           priority: parsedResult.priority || "medium",
           description: "",
           status: "todo",
-          confidence_score: null,
-          telegram_chat_id: telegramChatId,
-          telegram_message_id: telegramMessageId,
+          confidence_score: confidenceScore,
         };
 
         console.log("Inserting task with data:", insertData);
 
-        const { error } = await supabase.from("tasks").insert(insertData);
+        const { error, data } = await supabase.from("tasks").insert(insertData).select();
 
         if (error) {
           console.error("Supabase Insert Error:", error);
+          console.error("Error details:", {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+          });
           return NextResponse.json(
-            { success: false, error: "Failed to insert task" },
+            {
+              success: false,
+              error: "Failed to insert task",
+              details: error.message || "Unknown database error",
+            },
             { status: 500 }
           );
         }
+
+        console.log("Task inserted successfully:", data);
       }
     }
 
