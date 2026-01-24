@@ -200,6 +200,75 @@ export async function POST(request: NextRequest) {
         }
 
         console.log("Task inserted successfully:", data);
+
+        // Отправляем уведомление исполнителю, если задача назначена
+        if (assigneeId && data && data[0]) {
+          try {
+            // Получаем telegram_id исполнителя
+            const { data: assigneeProfile, error: assigneeProfileError } = await supabase
+              .from("profiles")
+              .select("telegram_id")
+              .eq("id", assigneeId)
+              .single();
+
+            if (!assigneeProfileError && assigneeProfile?.telegram_id) {
+              const botToken = process.env.TELEGRAM_BOT_TOKEN;
+              if (!botToken) {
+                console.warn("TELEGRAM_BOT_TOKEN not set, skipping notification");
+              } else {
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://rytttm.vercel.app";
+                const taskId = data[0].id;
+                const priorityEmoji = {
+                  high: "🔥",
+                  medium: "⚡",
+                  low: "💤",
+                }[parsedResult.priority || "medium"] || "⚡";
+
+                const messageText = `🔔 Новая задача для тебя!\n\n📝 ${parsedResult.title}\n${priorityEmoji} Приоритет: ${parsedResult.priority || "medium"}\n\nПосмотри подробности в приложении 👇`;
+
+                // Отправляем сообщение через Telegram API
+                const telegramResponse = await fetch(
+                  `https://api.telegram.org/bot${botToken}/sendMessage`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      chat_id: assigneeProfile.telegram_id,
+                      text: messageText,
+                      reply_markup: {
+                        inline_keyboard: [
+                          [
+                            {
+                              text: "Открыть задачу",
+                              web_app: {
+                                url: `${appUrl}/tasks/${taskId}`,
+                              },
+                            },
+                          ],
+                        ],
+                      },
+                    }),
+                  }
+                );
+
+                const telegramResult = await telegramResponse.json();
+
+                if (!telegramResponse.ok) {
+                  console.error("Failed to send Telegram notification:", telegramResult);
+                } else {
+                  console.log("Notification sent successfully to user:", assigneeProfile.telegram_id);
+                }
+              }
+            } else {
+              console.warn("Assignee profile not found or telegram_id missing:", assigneeProfileError);
+            }
+          } catch (notificationError) {
+            // Не прерываем выполнение, если уведомление не отправилось
+            console.error("Error sending notification (non-critical):", notificationError);
+          }
+        }
       }
     }
 
