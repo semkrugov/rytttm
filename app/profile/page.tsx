@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { haptics } from "@/lib/telegram";
 import { animationVariants } from "@/lib/animations";
 import { cn } from "@/lib/utils";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 interface EditFieldModalProps {
   isOpen: boolean;
@@ -125,17 +126,9 @@ function EditFieldModal({
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useTelegramAuth();
+  const hasAnimated = useHasAnimated();
   const [editingField, setEditingField] = useState<"username" | "position" | null>(null);
   const [profileData, setProfileData] = useState(user);
-  const [hasAnimated] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const animated = sessionStorage.getItem("app_has_animated");
-    if (!animated) {
-      sessionStorage.setItem("app_has_animated", "true");
-      return false;
-    }
-    return true;
-  });
 
   useEffect(() => {
     setProfileData(user);
@@ -267,7 +260,7 @@ export default function ProfilePage() {
 
           {/* Upgrade to Pro Banner */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={hasAnimated ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
               duration: 0.3,

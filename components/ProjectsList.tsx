@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { animationVariants } from "@/lib/animations";
 import { cn } from "@/lib/utils";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 export interface Project {
   id: string;
@@ -21,10 +22,12 @@ export default function ProjectsList({
   projects,
   onProjectClick,
 }: ProjectsListProps) {
+  const hasAnimated = useHasAnimated();
+  
   return (
     <motion.div
-      variants={animationVariants.staggerItem}
-      initial="initial"
+      variants={hasAnimated ? undefined : animationVariants.staggerItem}
+      initial={hasAnimated ? false : "initial"}
       animate="animate"
     >
       <h2 className="text-lg font-semibold text-[var(--tg-theme-text-color)] mb-4">
@@ -32,15 +35,17 @@ export default function ProjectsList({
       </h2>
       {projects.length > 0 ? (
         <motion.div
-          variants={animationVariants.staggerContainer}
-          initial="initial"
+          variants={hasAnimated ? undefined : animationVariants.staggerContainer}
+          initial={hasAnimated ? false : "initial"}
           animate="animate"
           className="space-y-3"
         >
           {projects.map((project) => (
             <motion.div
               key={project.id}
-              variants={animationVariants.staggerItem}
+              variants={hasAnimated ? undefined : animationVariants.staggerItem}
+              initial={hasAnimated ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               whileTap={{ scale: 0.98 }}
               transition={{
                 type: "spring",
@@ -69,7 +74,7 @@ export default function ProjectsList({
                 </div>
                 {project.active && (
                   <motion.div
-                    initial={{ scale: 0 }}
+                    initial={hasAnimated ? false : { scale: 0 }}
                     animate={{ scale: 1 }}
                     className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-[var(--tg-theme-bg-color)]"
                   />
@@ -87,7 +92,7 @@ export default function ProjectsList({
               </div>
               {project.unreadCount !== undefined && project.unreadCount > 0 && (
                 <motion.div
-                  initial={{ scale: 0 }}
+                  initial={hasAnimated ? false : { scale: 0 }}
                   animate={{ scale: 1 }}
                   className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--tg-theme-button-color)] flex items-center justify-center"
                 >
@@ -101,7 +106,7 @@ export default function ProjectsList({
         </motion.div>
       ) : (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={hasAnimated ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
             duration: 0.3,

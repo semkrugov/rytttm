@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { animationVariants } from "@/lib/animations";
 import TaskCheckbox from "./TaskCheckbox";
 import { cn, generateColorFromString } from "@/lib/utils";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 export interface Task {
   id: string;
@@ -20,10 +21,12 @@ interface FocusTasksProps {
 }
 
 export default function FocusTasks({ tasks, onTaskToggle }: FocusTasksProps) {
+  const hasAnimated = useHasAnimated();
+  
   return (
     <motion.div
-      variants={animationVariants.staggerItem}
-      initial="initial"
+      variants={hasAnimated ? undefined : animationVariants.staggerItem}
+      initial={hasAnimated ? false : "initial"}
       animate="animate"
       className="mb-6"
     >
@@ -31,15 +34,17 @@ export default function FocusTasks({ tasks, onTaskToggle }: FocusTasksProps) {
         Мой Фокус
       </h2>
       <motion.div
-        variants={animationVariants.staggerContainer}
-        initial="initial"
+        variants={hasAnimated ? undefined : animationVariants.staggerContainer}
+        initial={hasAnimated ? false : "initial"}
         animate="animate"
         className="space-y-3"
       >
         {tasks.map((task, index) => (
           <motion.div
             key={task.id}
-            variants={animationVariants.staggerItem}
+            variants={hasAnimated ? undefined : animationVariants.staggerItem}
+            initial={hasAnimated ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             whileTap={{ scale: 0.98 }}
             transition={{
               type: "spring",
@@ -72,7 +77,7 @@ export default function FocusTasks({ tasks, onTaskToggle }: FocusTasksProps) {
                     style={{
                       backgroundColor: generateColorFromString(task.projectTitle),
                     }}
-                    initial={{ opacity: 0, scale: 0.8 }}
+                    initial={hasAnimated ? false : { opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{
                       duration: 0.2,

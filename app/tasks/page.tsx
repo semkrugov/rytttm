@@ -11,22 +11,15 @@ import { Task, TaskStatus } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { haptics } from "@/lib/telegram";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 export default function TasksPage() {
+  const hasAnimated = useHasAnimated();
   const [activeStatus, setActiveStatus] = useState<TaskStatus>("todo");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
-  const [hasAnimated] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const animated = sessionStorage.getItem("app_has_animated");
-    if (!animated) {
-      sessionStorage.setItem("app_has_animated", "true");
-      return false;
-    }
-    return true;
-  });
 
   // Загрузка задач из Supabase
   useEffect(() => {
@@ -241,7 +234,7 @@ export default function TasksPage() {
             ) : (
               <motion.div
                 key="content"
-                initial={{ opacity: 0 }}
+                initial={hasAnimated ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{
@@ -251,8 +244,8 @@ export default function TasksPage() {
               >
                 <AnimatePresence mode="popLayout">
                   <motion.div
-                    variants={animationVariants.staggerContainer}
-                    initial="initial"
+                    variants={hasAnimated ? undefined : animationVariants.staggerContainer}
+                    initial={hasAnimated ? false : "initial"}
                     animate="animate"
                   >
                     {filteredTasks.length > 0 ? (
@@ -261,7 +254,7 @@ export default function TasksPage() {
                           {updating === task.id ? (
                             <motion.div
                               key={`loading-${task.id}`}
-                              initial={{ opacity: 0, scale: 0.95 }}
+                              initial={hasAnimated ? false : { opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.95 }}
                               transition={{
@@ -285,7 +278,7 @@ export default function TasksPage() {
                     ) : (
                       <motion.div
                         key="empty"
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={hasAnimated ? false : { opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                         transition={{

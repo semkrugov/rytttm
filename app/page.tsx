@@ -14,12 +14,14 @@ import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 import { cn } from "@/lib/utils";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 type TaskViewMode = "my" | "all";
 
 export default function Home() {
   const router = useRouter();
   const { user, loading: authLoading } = useTelegramAuth();
+  const hasAnimated = useHasAnimated();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,15 +29,6 @@ export default function Home() {
   const [projectsCount, setProjectsCount] = useState(0);
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("my");
   const channelRef = useRef<any>(null);
-  const [hasAnimated] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const animated = sessionStorage.getItem("app_has_animated");
-    if (!animated) {
-      sessionStorage.setItem("app_has_animated", "true");
-      return false;
-    }
-    return true;
-  });
 
   // Отладка статуса пользователя
   useEffect(() => {
@@ -278,11 +271,20 @@ export default function Home() {
             >
               {/* Блок уведомлений */}
               {mockNotifications.length > 0 && (
-                <NotificationCard
-                  title={mockNotifications[0].title}
-                  message={mockNotifications[0].message}
-                  time={mockNotifications[0].time}
-                />
+                <motion.div
+                  initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.3,
+                    ease: [0.19, 1, 0.22, 1],
+                  }}
+                >
+                  <NotificationCard
+                    title={mockNotifications[0].title}
+                    message={mockNotifications[0].message}
+                    time={mockNotifications[0].time}
+                  />
+                </motion.div>
               )}
 
               {/* Переключатель "Мои задачи" / "Все задачи проекта" */}
@@ -347,7 +349,7 @@ export default function Home() {
 
               {/* Плашка с информацией о пользователе */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={hasAnimated ? false : { opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   duration: 0.3,

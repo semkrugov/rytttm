@@ -8,6 +8,7 @@ import { Task, TaskStatus } from "@/types";
 import { haptics } from "@/lib/telegram";
 import { cn, generateColorFromString } from "@/lib/utils";
 import { animationVariants } from "@/lib/animations";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 interface TaskCardProps {
   task: Task;
@@ -23,6 +24,7 @@ export default function TaskCard({
   onStatusChange,
   onTimeTrackingToggle,
 }: TaskCardProps) {
+  const hasAnimated = useHasAnimated();
   const [isDragging, setIsDragging] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const x = useMotionValue(0);
@@ -94,8 +96,8 @@ export default function TaskCard({
   return (
     <motion.div
       layout
-      variants={animationVariants.staggerItem}
-      initial="initial"
+      variants={hasAnimated ? undefined : animationVariants.staggerItem}
+      initial={hasAnimated ? false : "initial"}
       animate="animate"
       exit={{ 
         opacity: 0, 
@@ -145,6 +147,8 @@ export default function TaskCard({
             isDragging && "shadow-lg"
           )}
           whileTap={{ scale: 0.98 }}
+          initial={hasAnimated ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{
             duration: 0.1,
             ease: [0.19, 1, 0.22, 1],

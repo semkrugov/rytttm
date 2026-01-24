@@ -12,18 +12,10 @@ import { animationVariants } from "@/lib/animations";
 import { haptics } from "@/lib/telegram";
 
 export default function AIInboxPage() {
+  const hasAnimated = useHasAnimated();
   const [items, setItems] = useState<AIInboxItem[]>(mockAIInboxItems);
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState(false);
-  const [hasAnimated] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const animated = sessionStorage.getItem("app_has_animated");
-    if (!animated) {
-      sessionStorage.setItem("app_has_animated", "true");
-      return false;
-    }
-    return true;
-  });
 
   const handleConfirm = (id: string) => {
     if (typeof window !== "undefined") {
@@ -95,8 +87,8 @@ export default function AIInboxPage() {
 
           {/* Список предложений */}
           <motion.div
-            variants={animationVariants.staggerContainer}
-            initial="initial"
+            variants={hasAnimated ? undefined : animationVariants.staggerContainer}
+            initial={hasAnimated ? false : "initial"}
             animate="animate"
             className="mb-4"
           >

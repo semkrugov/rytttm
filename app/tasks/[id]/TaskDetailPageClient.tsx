@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { haptics } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 interface TaskDetail {
   id: string;
@@ -54,6 +55,7 @@ interface TaskDetailPageClientProps {
 
 export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientProps) {
   const router = useRouter();
+  const hasAnimated = useHasAnimated();
 
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [assignee, setAssignee] = useState<AssigneeProfile | null>(null);
@@ -245,7 +247,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 50 }}
+      initial={hasAnimated ? false : { opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -50 }}
       transition={{
