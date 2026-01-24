@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractTaskFromText } from "@/lib/extractTask";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from "@/lib/supabase";
+
+// UUID regex для проверки
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
   try {
     // Парсинг тела запроса
     const body = await request.json();
     const { text, chatId, projectId, message } = body;
+
+    console.log("--- AI API START ---", { text, projectId });
 
     if (!text || typeof text !== "string") {
       return NextResponse.json(
@@ -15,17 +20,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("--- AI EXTRACT START ---", text);
+    if (!projectId) {
+      return NextResponse.json(
+        { error: "Missing 'projectId' parameter" },
+        { status: 400 }
+      );
+    }
 
-    // Вызываем extractTaskFromText
-    const result = await extractTaskFromText({
-      text,
-      currentDatetimeIso: new Date().toISOString(),
-      timezone: "Asia/Almaty",
-    });
+    // Проверка project_id на UUID
+    if (!UUID_REGEX.test(projectId)) {
+      console.error("Invalid project_id format (not UUID):", projectId);
+      return NextResponse.json(
+        { error: "Invalid project_id format. Must be UUID." },
+        { status: 400 }
+      );
+    }
+
+    // Вызываем Gemini API напрямую
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is missing");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const prompt = `Ты — робот. Проанализируй сообщение: "${text}". Верни ТОЛЬКО JSON объект. Если это задача: {"is_task": true, "title": "название", "priority": "high", "assignee_name": "имя"}. Если нет: {"is_task": false}. Не пиши ничего, кроме JSON.`;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    let rawResponse = (typeof response.text === "function" ? response.text() : response.text) ?? "";
+
+    // Очистка ответа от управляющих символов и markdown
+    let cleanText = rawResponse
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+      .replace(/```json|```/g, "")
+      .trim();
+
+    console.log("AI CLEANED RESPONSE:", cleanText);
+
+    // Парсинг JSON
+    let parsedResult: any;
+    try {
+      parsedResult = JSON.parse(cleanText);
+    } catch (parseError) {
+      console.error("Failed to parse AI response as JSON:", parseError);
+      console.error("Raw response:", rawResponse);
+      console.error("Cleaned response:", cleanText);
+      throw new Error("AI returned invalid JSON");
+    }
 
     // Если это задача, создаем её в Supabase
-    if (result.is_task && result.task_data && projectId && message) {
+    if (parsedResult.is_task && parsedResult.title && projectId && message) {
       const telegramChatId = message.chat?.id;
       const telegramMessageId = message.message_id;
       const telegramUserId = message.from?.id;
@@ -45,9 +91,9 @@ export async function POST(request: NextRequest) {
 
         // Находим UUID исполнителя (assignee_id), если указан
         let assigneeId: string | null = null;
-        if (result.task_data.assignee) {
-          const assigneeValue = result.task_data.assignee.trim();
-          
+        if (parsedResult.assignee_name) {
+          const assigneeValue = parsedResult.assignee_name.trim();
+
           // Если указан @username
           if (assigneeValue.startsWith("@")) {
             const username = assigneeValue.substring(1);
@@ -63,7 +109,7 @@ export async function POST(request: NextRequest) {
               console.warn(`Profile not found for username: ${username}`);
             }
           } else {
-            // Если указано имя без @, пытаемся найти по username (без @)
+            // Если указано имя без @, пытаемся найти по username
             const { data: assigneeProfile } = await supabase
               .from("profiles")
               .select("id")
@@ -82,14 +128,11 @@ export async function POST(request: NextRequest) {
           project_id: projectId,
           creator_id: creatorId,
           assignee_id: assigneeId,
-          title: result.task_data.title,
-          deadline: result.task_data.deadline
-            ? new Date(result.task_data.deadline).toISOString()
-            : null,
-          priority: result.task_data.priority,
-          description: result.task_data.description || "",
-          status: "todo", // Дефолтный статус
-          confidence_score: null, // Можно добавить логику для расчета confidence_score
+          title: parsedResult.title,
+          priority: parsedResult.priority || "medium",
+          description: "",
+          status: "todo",
+          confidence_score: null,
           telegram_chat_id: telegramChatId,
           telegram_message_id: telegramMessageId,
         };
@@ -111,12 +154,9 @@ export async function POST(request: NextRequest) {
     // Возвращаем успех
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error in /api/ai/extract:", error);
+    console.error("AI ROUTE CRASH:", error);
     return NextResponse.json(
-      {
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : String(error),
-      },
+      { error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
