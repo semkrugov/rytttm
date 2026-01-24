@@ -95,11 +95,11 @@ export default function Home() {
     try {
       setLoading(true);
 
-      // Загружаем задачи с информацией о проектах (топ-3 для "Мой Фокус")
-      // Используем join для получения названия проекта
+      // Загружаем задачи с информацией о проектах и исполнителе (топ-3 для "Мой Фокус")
+      // Используем join для получения названия проекта и профиля исполнителя
       let tasksQuery = supabase
         .from("tasks")
-        .select("*, projects(title)")
+        .select("*, projects(title), assignee:profiles!assignee_id(username, display_name, avatar_url)")
         .order("created_at", { ascending: false })
         .limit(3);
 
@@ -150,6 +150,7 @@ export default function Home() {
           : undefined,
         status: (task.status as "todo" | "doing" | "done") || "todo",
         completed: task.status === "done",
+        assignee: task.assignee || null,
       }));
 
       // Преобразуем проекты

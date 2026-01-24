@@ -60,7 +60,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
       // Загружаем участников проекта
       const { data: membersData, error: membersError } = await supabase
         .from("project_members")
-        .select("user_id, profiles(display_name, avatar_url, username, position)")
+        .select("*, profiles(username, display_name, avatar_url, position)")
         .eq("project_id", projectId);
 
       if (membersError) throw membersError;
@@ -79,7 +79,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
     try {
       let tasksQuery = supabase
         .from("tasks")
-        .select("*, projects(title)")
+        .select("*, projects(title), assignee:profiles!assignee_id(username, display_name, avatar_url)")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
 
@@ -115,6 +115,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
           : undefined,
         isTracking: task.is_tracking || false,
         completed: task.status === "done",
+        assignee: task.assignee || null,
       }));
 
       setTasks(formattedTasks);

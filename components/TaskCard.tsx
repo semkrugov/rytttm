@@ -173,36 +173,69 @@ export default function TaskCard({
           )}
         </div>
 
-        <div className="flex items-center justify-between">
-          {/* Тайм-трекинг */}
-          {task.timeTracking && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onTimeTrackingToggle?.(task.id);
-                }}
-                className="flex items-center gap-1.5 text-sm"
-              >
-                {task.isTracking ? (
-                  <Pause className="w-4 h-4 text-red-500" />
+        <div className="flex items-center justify-between gap-2">
+          {/* Исполнитель */}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {task.assignee ? (
+              <>
+                {task.assignee.avatar_url ? (
+                  <img
+                    src={task.assignee.avatar_url}
+                    alt={task.assignee.display_name || task.assignee.username || "User"}
+                    className="w-6 h-6 rounded-full flex-shrink-0"
+                  />
                 ) : (
-                  <Play className="w-4 h-4 text-green-500" />
+                  <div className="w-6 h-6 rounded-full bg-[var(--tg-theme-button-color)] flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-white">
+                      {(task.assignee.display_name || task.assignee.username || "U")[0].toUpperCase()}
+                    </span>
+                  </div>
                 )}
-                <span className="text-[var(--tg-theme-text-color)]">
-                  {task.timeTracking}
+                <span className="text-xs text-[var(--tg-theme-text-color)] truncate">
+                  {task.assignee.display_name || task.assignee.username || "User"}
                 </span>
-              </button>
-            </div>
-          )}
+              </>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <div className="w-6 h-6 rounded-full bg-[var(--tg-theme-hint-color)]/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs text-[var(--tg-theme-hint-color)]">?</span>
+                </div>
+                <span className="text-xs text-[var(--tg-theme-hint-color)]">Не назначено</span>
+              </div>
+            )}
+          </div>
 
-          {/* Дедлайн */}
-          {task.deadlineTime && (
-            <div className="flex items-center gap-1.5 text-sm text-[var(--tg-theme-hint-color)]">
-              <Calendar className="w-4 h-4 text-purple-500" />
-              <span>{task.deadlineTime}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {/* Тайм-трекинг */}
+            {task.timeTracking && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTimeTrackingToggle?.(task.id);
+                  }}
+                  className="flex items-center gap-1.5 text-sm"
+                >
+                  {task.isTracking ? (
+                    <Pause className="w-4 h-4 text-red-500" />
+                  ) : (
+                    <Play className="w-4 h-4 text-green-500" />
+                  )}
+                  <span className="text-[var(--tg-theme-text-color)]">
+                    {task.timeTracking}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Дедлайн */}
+            {task.deadlineTime && (
+              <div className="flex items-center gap-1.5 text-sm text-[var(--tg-theme-hint-color)]">
+                <Calendar className="w-4 h-4 text-purple-500" />
+                <span>{task.deadlineTime}</span>
+              </div>
+            )}
+          </div>
         </div>
         </motion.div>
       </Link>

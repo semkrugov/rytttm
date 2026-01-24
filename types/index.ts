@@ -11,6 +11,11 @@ export interface Task {
   timeTracking?: string; // e.g., "01:45"
   isTracking?: boolean; // true for play, false for pause
   completed: boolean;
+  assignee?: {
+    username: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 }
 
 export interface Project {

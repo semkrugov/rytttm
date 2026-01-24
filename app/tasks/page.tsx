@@ -70,10 +70,10 @@ export default function TasksPage() {
     try {
       setLoading(true);
       
-      // Загружаем все задачи с информацией о проектах
+      // Загружаем все задачи с информацией о проектах и исполнителе
       const { data, error } = await supabase
         .from("tasks")
-        .select("*, projects(title)")
+        .select("*, projects(title), assignee:profiles!assignee_id(username, display_name, avatar_url)")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -105,6 +105,7 @@ export default function TasksPage() {
           : undefined,
         isTracking: task.is_tracking || false,
         completed: task.status === "done",
+        assignee: task.assignee || null,
       }));
 
       setTasks(formattedTasks);
