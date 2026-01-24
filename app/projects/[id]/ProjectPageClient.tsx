@@ -17,7 +17,6 @@ import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 interface ProjectMember {
   user_id: string;
   profiles: {
-    display_name: string | null;
     avatar_url: string | null;
     username: string | null;
     position: string | null;
@@ -92,7 +91,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
       // Загружаем участников проекта
       const { data: membersData, error: membersError } = await supabase
         .from("project_members")
-        .select("*, profiles(username, display_name, avatar_url, position)")
+        .select("*, profiles(username, avatar_url, position)")
         .eq("project_id", projectId);
 
       if (membersError) throw membersError;
@@ -111,7 +110,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
     try {
       let tasksQuery = supabase
         .from("tasks")
-        .select("*, projects(title), assignee:profiles!assignee_id(username, display_name, avatar_url)")
+        .select("*, projects(title), assignee:profiles!assignee_id(username, avatar_url)")
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
 
@@ -338,7 +337,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
               const profile = Array.isArray(member.profiles) 
                 ? member.profiles[0] 
                 : member.profiles;
-              const displayName = profile?.display_name || profile?.username || "User";
+              const displayName = profile?.username || "User";
               const avatarUrl = profile?.avatar_url;
               const isSelected = selectedMemberId === member.user_id;
 

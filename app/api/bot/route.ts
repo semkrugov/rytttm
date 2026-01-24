@@ -41,7 +41,7 @@ export const POST = async (request: NextRequest) => {
 
     console.log(`[BOT] Нашли проект с UUID: ${projectUuid}`);
 
-    // 2. Ищем или создаем профиль пользователя (сохраняем first_name как display_name)
+    // 2. Ищем или создаем профиль пользователя
     const userProfileId = await ensureProfile(telegramUserId, body.message.from);
 
     if (!userProfileId) {
@@ -142,24 +142,24 @@ async function ensureProfile(
   // Ищем профиль по telegram_id
   const { data: existingProfile, error: selectError } = await supabase
     .from("profiles")
-    .select("id, display_name")
+    .select("id, username")
     .eq("telegram_id", telegramUserId)
     .single();
 
   if (existingProfile) {
     console.log("[BOT] Profile found:", existingProfile.id);
     
-    // Обновляем display_name, если его нет, но есть first_name
-    if (!existingProfile.display_name && telegramUser.first_name) {
+    // Обновляем username, если его нет, но есть first_name
+    if (!existingProfile.username && telegramUser.first_name) {
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ display_name: telegramUser.first_name })
+        .update({ username: telegramUser.first_name })
         .eq("id", existingProfile.id);
       
       if (updateError) {
-        console.error("[BOT] Error updating display_name:", updateError);
+        console.error("[BOT] Error updating username:", updateError);
       } else {
-        console.log("[BOT] Updated display_name for profile:", existingProfile.id);
+        console.log("[BOT] Updated username for profile:", existingProfile.id);
       }
     }
     
@@ -172,13 +172,12 @@ async function ensureProfile(
   }
 
   // Если профиля нет, создаем его
-  // Сохраняем first_name как display_name
+  // Используем username из Telegram, если нет - используем first_name
   const { data: newProfile, error: insertError } = await supabase
     .from("profiles")
     .insert({
       telegram_id: telegramUserId,
-      username: telegramUser.username || null,
-      display_name: telegramUser.first_name || null,
+      username: telegramUser.username || telegramUser.first_name || null,
     })
     .select("id")
     .single();

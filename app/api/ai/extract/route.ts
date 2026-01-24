@@ -7,7 +7,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 /**
  * Функция для поиска профиля по имени
- * Основной поиск по username, fallback по display_name
+ * Поиск только по username
  */
 async function findProfileByName(name: string): Promise<string | null> {
   // Очищаем имя от @ и лишних пробелов
@@ -15,7 +15,7 @@ async function findProfileByName(name: string): Promise<string | null> {
   
   console.log("Поиск профиля для имени:", cleanName);
 
-  // Основной поиск по username (точное совпадение без учета регистра)
+  // Поиск по username (точное совпадение без учета регистра)
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("id")
@@ -29,23 +29,6 @@ async function findProfileByName(name: string): Promise<string | null> {
 
   if (error && error.code !== "PGRST116") {
     console.error("Ошибка при поиске по username:", error);
-  }
-
-  // Fallback: поиск по display_name, если по username не найдено
-  console.log("Поиск по display_name (fallback):", cleanName);
-  const { data: displayProfile, error: displayError } = await supabase
-    .from("profiles")
-    .select("id")
-    .ilike("display_name", cleanName)
-    .maybeSingle();
-
-  if (displayProfile) {
-    console.log("Профиль найден по display_name:", cleanName, "->", displayProfile.id);
-    return displayProfile.id;
-  }
-
-  if (displayError && displayError.code !== "PGRST116") {
-    console.error("Ошибка при поиске по display_name:", displayError);
   }
 
   console.log("Профиль не найден для имени:", cleanName);
@@ -92,9 +75,9 @@ export async function POST(request: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const prompt = `Ты — робот. Проанализируй сообщение: "${text}". Верни ТОЛЬКО JSON объект. Если это задача: {"is_task": true, "title": "название", "priority": "high", "assignee_name": "имя", "confidence_score": 85}. Если нет: {"is_task": false}. 
+    const prompt = `Ты — робот. Проанализируй сообщение: "${text}". Верни ТОЛЬКО JSON объект. Если это задача: {"is_task": true, "title": "название", "priority": "high", "assignee_name": "username", "confidence_score": 85}. Если нет: {"is_task": false}. 
 
-ВАЖНО для assignee_name: При поиске assignee_name учитывай уменьшительно-ласкательные имена и ники. Например, если в тексте "Ваня", "Ванёк" или "Vanya", а в контексте понятно, что это исполнитель — выдели его основное имя (Иван) или юзернейм. Возвращай имя в именительном падеже без символа @.
+ВАЖНО для assignee_name: Ищи исполнителя и возвращай его точный Telegram username (без символа @). Например, если в тексте упоминается "@puffsll" или "puffsll", верни "puffsll". Если упоминается имя "Ваня" или "Иван", но в контексте понятно, что это исполнитель — попробуй определить его Telegram username из контекста. Если username не удается определить, верни null.
 
 Не пиши ничего, кроме JSON.`;
 

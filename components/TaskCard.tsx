@@ -181,18 +181,18 @@ export default function TaskCard({
                 {task.assignee.avatar_url ? (
                   <img
                     src={task.assignee.avatar_url}
-                    alt={task.assignee.display_name || task.assignee.username || "User"}
+                    alt={task.assignee.username || "User"}
                     className="w-6 h-6 rounded-full flex-shrink-0"
                   />
                 ) : (
                   <div className="w-6 h-6 rounded-full bg-[var(--tg-theme-button-color)] flex items-center justify-center flex-shrink-0">
                     <span className="text-xs font-medium text-white">
-                      {(task.assignee.display_name || task.assignee.username || "U")[0].toUpperCase()}
+                      {(task.assignee.username || "U")[0].toUpperCase()}
                     </span>
                   </div>
                 )}
                 <span className="text-xs text-[var(--tg-theme-text-color)] truncate">
-                  {task.assignee.display_name || task.assignee.username || "User"}
+                  {task.assignee.username || "User"}
                 </span>
               </>
             ) : (

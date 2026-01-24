@@ -99,7 +99,7 @@ export default function Home() {
       // Используем join для получения названия проекта и профиля исполнителя
       let tasksQuery = supabase
         .from("tasks")
-        .select("*, projects(title), assignee:profiles!assignee_id(username, display_name, avatar_url)")
+        .select("*, projects(title), assignee:profiles!assignee_id(username, avatar_url)")
         .order("created_at", { ascending: false })
         .limit(3);
 

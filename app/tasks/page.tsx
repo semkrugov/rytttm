@@ -73,7 +73,7 @@ export default function TasksPage() {
       // Загружаем все задачи с информацией о проектах и исполнителе
       const { data, error } = await supabase
         .from("tasks")
-        .select("*, projects(title), assignee:profiles!assignee_id(username, display_name, avatar_url)")
+        .select("*, projects(title), assignee:profiles!assignee_id(username, avatar_url)")
         .order("created_at", { ascending: false });
 
       if (error) throw error;

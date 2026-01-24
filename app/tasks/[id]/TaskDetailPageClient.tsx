@@ -33,7 +33,6 @@ interface AssigneeProfile {
   id: string;
   username: string | null;
   avatar_url: string | null;
-  display_name: string | null;
   position: string | null;
 }
 
@@ -115,7 +114,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
       if (taskData.assignee_id) {
         const { data: assigneeData, error: assigneeError } = await supabase
           .from("profiles")
-          .select("id, username, avatar_url, display_name")
+          .select("id, username, avatar_url")
           .eq("id", taskData.assignee_id)
           .single();
 
@@ -339,14 +338,12 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-[var(--tg-theme-button-color)] flex items-center justify-center">
                     <span className="text-white text-xs font-medium">
-                      {(assignee.username || assignee.display_name || "U")[0].toUpperCase()}
+                      {(assignee.username || "U")[0].toUpperCase()}
                     </span>
                   </div>
                 )}
                 <span className="text-sm text-[var(--tg-theme-text-color)]">
-                  {assignee.username
-                    ? `@${assignee.username}`
-                    : assignee.display_name || "Unassigned"}
+                  {assignee.username ? `@${assignee.username}` : "Unassigned"}
                 </span>
               </div>
             ) : (
