@@ -31,21 +31,72 @@ export async function POST(request: NextRequest) {
       const telegramUserId = message.from?.id;
 
       if (telegramChatId && telegramMessageId && telegramUserId) {
-        const taskData = {
+        // Находим UUID создателя задачи (creator_id)
+        let creatorId: string | null = null;
+        const { data: creatorProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("telegram_id", telegramUserId)
+          .single();
+
+        if (creatorProfile) {
+          creatorId = creatorProfile.id;
+        }
+
+        // Находим UUID исполнителя (assignee_id), если указан
+        let assigneeId: string | null = null;
+        if (result.task_data.assignee) {
+          const assigneeValue = result.task_data.assignee.trim();
+          
+          // Если указан @username
+          if (assigneeValue.startsWith("@")) {
+            const username = assigneeValue.substring(1);
+            const { data: assigneeProfile } = await supabase
+              .from("profiles")
+              .select("id")
+              .eq("username", username)
+              .single();
+
+            if (assigneeProfile) {
+              assigneeId = assigneeProfile.id;
+            } else {
+              console.warn(`Profile not found for username: ${username}`);
+            }
+          } else {
+            // Если указано имя без @, пытаемся найти по username (без @)
+            const { data: assigneeProfile } = await supabase
+              .from("profiles")
+              .select("id")
+              .eq("username", assigneeValue)
+              .single();
+
+            if (assigneeProfile) {
+              assigneeId = assigneeProfile.id;
+            } else {
+              console.warn(`Profile not found for assignee: ${assigneeValue}`);
+            }
+          }
+        }
+
+        const insertData = {
           project_id: projectId,
+          creator_id: creatorId,
+          assignee_id: assigneeId,
           title: result.task_data.title,
-          assignee: result.task_data.assignee,
           deadline: result.task_data.deadline
             ? new Date(result.task_data.deadline).toISOString()
             : null,
           priority: result.task_data.priority,
           description: result.task_data.description || "",
+          status: "todo", // Дефолтный статус
+          confidence_score: null, // Можно добавить логику для расчета confidence_score
           telegram_chat_id: telegramChatId,
           telegram_message_id: telegramMessageId,
-          created_by_telegram_user_id: telegramUserId,
         };
 
-        const { error } = await supabase.from("tasks").insert(taskData);
+        console.log("Inserting task with data:", insertData);
+
+        const { error } = await supabase.from("tasks").insert(insertData);
 
         if (error) {
           console.error("Supabase Insert Error:", error);
