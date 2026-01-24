@@ -154,24 +154,51 @@ export default function TaskDetailPage() {
   const handleTimeTrackingToggle = async () => {
     if (!task) return;
 
-    haptics.medium();
     const newIsTracking = !isTracking;
 
-    try {
-      // Обновляем в базе
-      const { error } = await supabase
-        .from("tasks")
-        .update({
-          is_tracking: newIsTracking,
-          time_tracking: timeElapsed,
-        })
-        .eq("id", taskId);
+    if (newIsTracking) {
+      // Запуск таймера (Play)
+      haptics.medium();
+      
+      try {
+        // Сначала обновляем is_tracking на true в базе
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            is_tracking: true,
+          })
+          .eq("id", taskId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setIsTracking(newIsTracking);
-    } catch (error) {
-      console.error("Error updating time tracking:", error);
+        // Затем запускаем локальный счетчик
+        setIsTracking(true);
+      } catch (error) {
+        console.error("Error starting time tracking:", error);
+      }
+    } else {
+      // Остановка таймера (Stop)
+      haptics.medium();
+      
+      try {
+        // Сначала останавливаем локальный счетчик
+        setIsTracking(false);
+
+        // Затем сохраняем накопленные секунды в базу
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            is_tracking: false,
+            time_tracking: timeElapsed,
+          })
+          .eq("id", taskId);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error("Error stopping time tracking:", error);
+        // Восстанавливаем состояние при ошибке
+        setIsTracking(true);
+      }
     }
   };
 
