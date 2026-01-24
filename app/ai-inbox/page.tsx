@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -8,11 +8,32 @@ import AIInboxCard from "@/components/AIInboxCard";
 import Toast from "@/components/Toast";
 import { AIInboxItem } from "@/types";
 import { mockAIInboxItems } from "@/lib/mockData";
-import { animationVariants } from "@/lib/animations";
 import { haptics } from "@/lib/telegram";
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.3,
+      ease: [0.19, 1, 0.22, 1],
+    },
+  },
+};
+
 export default function AIInboxPage() {
-  const hasAnimated = useHasAnimated();
   const [items, setItems] = useState<AIInboxItem[]>(mockAIInboxItems);
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState(false);
@@ -56,7 +77,7 @@ export default function AIInboxPage() {
         }}
       >
         <motion.div
-          initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
             duration: 0.4,
@@ -87,20 +108,25 @@ export default function AIInboxPage() {
 
           {/* Список предложений */}
           <motion.div
-            variants={hasAnimated ? undefined : animationVariants.staggerContainer}
-            initial={hasAnimated ? false : "initial"}
-            animate="animate"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
             className="mb-4"
           >
             <AnimatePresence mode="popLayout">
               {items.length > 0 ? (
                 items.map((item) => (
-                  <AIInboxCard
+                  <motion.div
                     key={item.id}
-                    item={item}
-                    onConfirm={handleConfirm}
-                    onReject={handleReject}
-                  />
+                    variants={itemVariants}
+                    layout
+                  >
+                    <AIInboxCard
+                      item={item}
+                      onConfirm={handleConfirm}
+                      onReject={handleReject}
+                    />
+                  </motion.div>
                 ))
               ) : (
                 <motion.div
