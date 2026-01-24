@@ -64,7 +64,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
         .eq("project_id", projectId);
 
       if (membersError) throw membersError;
-      setMembers((membersData || []) as ProjectMember[]);
+      setMembers(membersData as any[]);
 
       // Загружаем задачи проекта
       await loadTasks();
@@ -258,7 +258,10 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
           {/* Avatar Group */}
           <div className="flex items-center gap-2 flex-wrap">
             {members.map((member) => {
-              const profile = member.profiles;
+              // Обрабатываем случай, когда profiles может быть массивом или объектом
+              const profile = Array.isArray(member.profiles) 
+                ? member.profiles[0] 
+                : member.profiles;
               const displayName = profile?.display_name || profile?.username || "User";
               const avatarUrl = profile?.avatar_url;
               const isSelected = selectedMemberId === member.user_id;
