@@ -1,52 +1,15 @@
+import "server-only";
 import OpenAI from "openai";
+import type { ExtractResult } from "@/lib/extractTypes";
+import { safeJsonParse } from "@/lib/extractTypes";
+import { extractTaskWithGemini } from "@/lib/gemini";
 
-export type ExtractResult =
-  | { is_task: false }
-  | {
-      is_task: true;
-      task_data: {
-        title: string;
-        assignee: string | null;
-        deadline: string | null;
-        priority: "low" | "medium" | "high";
-        description: string;
-      };
-    };
+export type { ExtractResult } from "@/lib/extractTypes";
 
-const client = new OpenAI({
+const deepseekClient = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
   baseURL: "https://api.deepseek.com",
 });
-
-function safeJsonParse(text: string): ExtractResult {
-  try {
-    const parsed = JSON.parse(text);
-
-    if (parsed && typeof parsed === "object" && parsed.is_task === false) {
-      return { is_task: false };
-    }
-
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      parsed.is_task === true &&
-      parsed.task_data &&
-      typeof parsed.task_data.title === "string" &&
-      (parsed.task_data.assignee === null || typeof parsed.task_data.assignee === "string") &&
-      (parsed.task_data.deadline === null || typeof parsed.task_data.deadline === "string") &&
-      (parsed.task_data.priority === "low" ||
-        parsed.task_data.priority === "medium" ||
-        parsed.task_data.priority === "high") &&
-      typeof parsed.task_data.description === "string"
-    ) {
-      return parsed as ExtractResult;
-    }
-
-    return { is_task: false };
-  } catch {
-    return { is_task: false };
-  }
-}
 
 const SYSTEM_PROMPT = `
 Ты — AI-менеджер проектов внутри Telegram-бота. Твоя задача — извлекать задачи из сообщений.
@@ -76,21 +39,19 @@ const SYSTEM_PROMPT = `
 - description: добавь полезный контекст (ссылки/уточнения). Если нет — "".
 `.trim();
 
-export async function extractTaskFromText(params: {
+async function extractTaskWithDeepSeek(params: {
   text: string;
   currentDatetimeIso: string;
-  timezone: string; // "Asia/Almaty"
+  timezone: string;
 }): Promise<ExtractResult> {
   const text = params.text?.trim();
   if (!text) return { is_task: false };
 
   if (!process.env.DEEPSEEK_API_KEY) {
-    console.error("DEEPSEEK_API_KEY is missing");
-    return { is_task: false };
+    throw new Error("DEEPSEEK_API_KEY is missing");
   }
 
-  try {
-    const userPrompt = `
+  const userPrompt = `
 json
 CURRENT_DATETIME: ${params.currentDatetimeIso}
 TIMEZONE: ${params.timezone} (UTC+06:00)
@@ -99,23 +60,67 @@ MESSAGE:
 ${text}
 `.trim();
 
-    const resp = await client.chat.completions.create({
-      model: "deepseek-chat",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0,
-      max_tokens: 700,
-      response_format: { type: "json_object" },
-    });
+  const resp = await deepseekClient.chat.completions.create({
+    model: "deepseek-chat",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0,
+    max_tokens: 700,
+    response_format: { type: "json_object" },
+  });
 
-    const content = resp.choices?.[0]?.message?.content ?? "";
-    if (!content) return { is_task: false };
+  const content = resp.choices?.[0]?.message?.content ?? "";
+  if (!content) throw new Error("DeepSeek returned empty content");
 
-    return safeJsonParse(content);
+  return safeJsonParse(content);
+}
+
+const TASK_TRIGGERS =
+  /\b(сделай|сделать|нужно|надо|надо бы|подготовь|подготовить|проверь|проверить|поправь|поправить|добавь|добавить|настрой|настроить|организуй|организовать|напомни|напомнить|отправь|отправить|создай|создать|напиши|написать|позвони|позвонить|купи|купить|закажи|заказать)\b/i;
+
+function extractTaskWithHeuristics(text: string): ExtractResult {
+  const t = text?.trim() ?? "";
+  if (!t) return { is_task: false };
+  if (!TASK_TRIGGERS.test(t)) return { is_task: false };
+
+  const firstLine = t.split(/\r?\n/)[0]?.trim() ?? t.slice(0, 120);
+  const title = firstLine.length > 200 ? firstLine.slice(0, 197) + "…" : firstLine;
+
+  return {
+    is_task: true,
+    task_data: {
+      title,
+      assignee: null,
+      deadline: null,
+      priority: "medium",
+      description: "",
+    },
+  };
+}
+
+export async function extractTaskFromText(params: {
+  text: string;
+  currentDatetimeIso: string;
+  timezone: string;
+}): Promise<ExtractResult> {
+  const text = params.text?.trim();
+  if (!text) return { is_task: false };
+
+  try {
+    const out = await extractTaskWithGemini(params);
+    console.log("[AI] Gemini success");
+    return out;
   } catch (err) {
-    console.error("Error in extractTask (DeepSeek):", err);
-    return { is_task: false };
+    console.warn("[AI] Gemini failed, fallback to DeepSeek", err);
   }
+
+  try {
+    return await extractTaskWithDeepSeek(params);
+  } catch (err) {
+    console.warn("[AI] DeepSeek failed, fallback to rules", err);
+  }
+
+  return extractTaskWithHeuristics(text);
 }
