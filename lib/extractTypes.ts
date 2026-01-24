@@ -13,7 +13,9 @@ export type ExtractResult =
 
 export function safeJsonParse(text: string): ExtractResult {
   try {
-    const parsed = JSON.parse(text);
+    // Очистка от markdown code blocks
+    const cleaned = text.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
 
     if (parsed && typeof parsed === "object" && parsed.is_task === false) {
       return { is_task: false };
