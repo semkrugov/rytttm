@@ -218,13 +218,8 @@ export async function POST(request: NextRequest) {
               } else {
                 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://rytttm.vercel.app";
                 const taskId = data[0].id;
-                const priorityEmoji = {
-                  high: "🔥",
-                  medium: "⚡",
-                  low: "💤",
-                }[parsedResult.priority || "medium"] || "⚡";
 
-                const messageText = `🔔 Новая задача для тебя!\n\n📝 ${parsedResult.title}\n${priorityEmoji} Приоритет: ${parsedResult.priority || "medium"}\n\nПосмотри подробности в приложении 👇`;
+                const messageText = `🔔 Новая задача для тебя!\n\n📝 ${parsedResult.title}\n🔥 Приоритет: ${parsedResult.priority || "medium"}\n\nПосмотри подробности в приложении 👇`;
 
                 // Отправляем сообщение через Telegram API
                 const telegramResponse = await fetch(
