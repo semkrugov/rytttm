@@ -1,6 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+/**
+ * Проверяет, стоит ли вызывать ИИ для обработки сообщения
+ * Оптимизация для экономии квот API
+ */
+function shouldCallAI(text: string): boolean {
+  const trimmedText = text.trim();
+  
+  // Проверка 1: Длина текста меньше 10 символов
+  if (trimmedText.length < 10) {
+    console.log("[BOT] Text too short, skipping AI call");
+    return false;
+  }
+  
+  // Проверка 2: Сообщение состоит только из одного слова
+  const words = trimmedText.split(/\s+/);
+  if (words.length === 1) {
+    console.log("[BOT] Single word message, skipping AI call");
+    return false;
+  }
+  
+  // Проверка 3: Сообщение длиннее 30 символов - всегда вызываем ИИ
+  if (trimmedText.length > 30) {
+    console.log("[BOT] Long message, calling AI");
+    return true;
+  }
+  
+  // Проверка 4: Наличие ключевых слов-триггеров
+  const triggerWords = [
+    'сделай', 'сделать', 'нужно', 'надо', 'подготовь', 'подготовить',
+    'завтра', 'сегодня', 'срочно', 'поправь', 'исправь', 'добавь',
+    'удали', 'измени', 'обнови', 'создай', 'напиши', 'отправь',
+    'проверь', 'посмотри', 'найди', 'заверши', 'закончи', 'начать',
+    'начал', 'закончил', 'готово', 'сделано', 'выполнено',
+    '@' // Упоминание пользователя
+  ];
+  
+  const lowerText = trimmedText.toLowerCase();
+  const hasTrigger = triggerWords.some(word => lowerText.includes(word));
+  
+  if (hasTrigger) {
+    console.log("[BOT] Trigger word found, calling AI");
+    return true;
+  }
+  
+  console.log("[BOT] No trigger words and message too short, skipping AI call");
+  return false;
+}
+
 // Экспорт POST-обработчика для вебхука
 export const POST = async (request: NextRequest) => {
   try {
@@ -54,29 +102,34 @@ export const POST = async (request: NextRequest) => {
 
     console.log(`[BOT] Авто-регистрация завершена: пользователь ${userProfileId} добавлен в проект ${projectUuid}`);
 
-    // Вызываем наш API /api/ai/extract
-    try {
-      const response = await fetch("https://rytttm.vercel.app/api/ai/extract", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text,
-          chatId,
-          projectId: projectUuid,
-          message: body.message,
-        }),
-      });
+    // Проверяем, стоит ли вызывать ИИ для обработки сообщения
+    if (shouldCallAI(text)) {
+      // Вызываем наш API /api/ai/extract
+      try {
+        const response = await fetch("https://rytttm.vercel.app/api/ai/extract", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text,
+            chatId,
+            projectId: projectUuid,
+            message: body.message,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log("[BOT] AI extract result:", result);
+      } catch (error) {
+        console.error("Fetch AI error:", error);
       }
-
-      const result = await response.json();
-      console.log("[BOT] AI extract result:", result);
-    } catch (error) {
-      console.error("Fetch AI error:", error);
+    } else {
+      console.log("[BOT] Skipping AI call - message doesn't meet criteria");
     }
 
     // Всегда возвращаем 200 OK
