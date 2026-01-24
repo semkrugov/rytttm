@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     // Парсинг тела запроса
     const body = await request.json();
-    const { text, chatId, message } = body;
+    const { text, chatId, projectId, message } = body;
 
     if (!text || typeof text !== "string") {
       return NextResponse.json(
@@ -25,8 +25,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Если это задача, создаем её в Supabase
-    if (result.is_task && result.task_data && chatId && message) {
-      const projectId = String(chatId);
+    if (result.is_task && result.task_data && projectId && message) {
       const telegramChatId = message.chat?.id;
       const telegramMessageId = message.message_id;
       const telegramUserId = message.from?.id;

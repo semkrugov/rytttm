@@ -24,8 +24,15 @@ export const POST = async (request: NextRequest) => {
     }
 
     // Ищем или создаем проект
-    const projectId = String(chatId);
-    await ensureProject(projectId, body.message.chat.title || `Chat ${projectId}`);
+    const chatTitle = body.message.chat.title || `Chat ${chatId}`;
+    const projectUuid = await ensureProject(chatId, chatTitle);
+
+    if (!projectUuid) {
+      console.error("[BOT] Failed to get or create project");
+      return NextResponse.json({ ok: true });
+    }
+
+    console.log(`Нашли проект с UUID: ${projectUuid}`);
 
     // Вызываем наш API /api/ai/extract
     try {
@@ -37,6 +44,7 @@ export const POST = async (request: NextRequest) => {
         body: JSON.stringify({
           text,
           chatId,
+          projectId: projectUuid,
           message: body.message,
         }),
       });
@@ -61,24 +69,40 @@ export const POST = async (request: NextRequest) => {
 };
 
 /**
- * Создает проект, если его еще нет
+ * Создает проект, если его еще нет, и возвращает его UUID
  */
-async function ensureProject(projectId: string, title: string): Promise<void> {
-  console.log("[BOT] ensureProject", { projectId, title });
+async function ensureProject(chatId: number, title: string): Promise<string | null> {
+  console.log("[BOT] ensureProject", { chatId, title });
 
-  const { error } = await supabase
+  // Ищем проект по telegram_chat_id
+  const { data: existingProject, error: selectError } = await supabase
     .from("projects")
-    .upsert(
-      {
-        id: projectId,
-        title: title,
-      },
-      { onConflict: "id" }
-    );
+    .select("id")
+    .eq("telegram_chat_id", chatId)
+    .single();
 
-  if (error) {
-    console.error("[BOT] Error ensuring project", projectId, error);
+  if (existingProject) {
+    console.log("[BOT] Project found:", existingProject.id);
+    return existingProject.id;
   }
+
+  // Если проекта нет, создаем его
+  const { data: newProject, error: insertError } = await supabase
+    .from("projects")
+    .insert({
+      telegram_chat_id: chatId,
+      title: title,
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    console.error("[BOT] Error creating project", chatId, insertError);
+    return null;
+  }
+
+  console.log("[BOT] Project created:", newProject.id);
+  return newProject.id;
 }
 
 /**

@@ -41,7 +41,7 @@ export async function extractTaskWithGemini(params: {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const userPrompt = `
 CURRENT_DATETIME: ${params.currentDatetimeIso}
@@ -56,8 +56,11 @@ ${params.text?.trim() ?? ""}
   const response = result.response;
   let raw = (typeof response.text === "function" ? response.text() : response.text) ?? "";
 
+  // Очистка от markdown code blocks
   raw = raw.trim();
   raw = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+  // Дополнительная очистка от возможных остатков markdown
+  raw = raw.replace(/```json|```/g, "").trim();
 
   if (!raw) {
     throw new Error("Gemini returned empty content");
