@@ -207,8 +207,8 @@ export default function ProfilePage() {
       >
         <motion.div
           initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
+          animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+          transition={hasAnimated ? { duration: 0 } : {
             duration: 0.4,
             ease: [0.19, 1, 0.22, 1],
           }}
@@ -259,16 +259,16 @@ export default function ProfilePage() {
           </div>
 
           {/* Upgrade to Pro Banner */}
-          <motion.div
-            initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.3,
-              delay: 0.1,
-              ease: [0.19, 1, 0.22, 1],
-            }}
-            className="bg-gradient-to-r from-[var(--tg-theme-button-color)]/20 to-[var(--tg-theme-button-color)]/10 rounded-xl p-4 mb-6 flex items-center justify-between"
-          >
+            <motion.div
+              initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+              animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+              transition={hasAnimated ? { duration: 0 } : {
+                duration: 0.3,
+                delay: 0.1,
+                ease: [0.19, 1, 0.22, 1],
+              }}
+              className="bg-gradient-to-r from-[var(--tg-theme-button-color)]/20 to-[var(--tg-theme-button-color)]/10 rounded-xl p-4 mb-6 flex items-center justify-between"
+            >
             <div className="flex items-center gap-3 flex-1">
               <Crown className="w-6 h-6 text-[var(--tg-theme-button-color)]" />
               <div>

@@ -293,8 +293,8 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
   return (
     <motion.div
       initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
+      animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+      transition={hasAnimated ? { duration: 0 } : {
         duration: 0.4,
         ease: [0.19, 1, 0.22, 1],
       }}
@@ -353,8 +353,8 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
                   )}
                   whileTap={{ scale: 0.9 }}
                   initial={hasAnimated ? false : { opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{
+                  animate={hasAnimated ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
+                  transition={hasAnimated ? { duration: 0 } : {
                     duration: 0.2,
                     ease: [0.19, 1, 0.22, 1],
                   }}
@@ -375,7 +375,8 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
                   {isSelected && (
                     <motion.div
                       initial={hasAnimated ? false : { scale: 0 }}
-                      animate={{ scale: 1 }}
+                      animate={hasAnimated ? { scale: 1 } : { scale: 1 }}
+                      transition={hasAnimated ? { duration: 0 } : undefined}
                       className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--tg-theme-button-color)] rounded-full border-2 border-[var(--tg-theme-bg-color)]"
                     />
                   )}
@@ -388,7 +389,8 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
           {selectedMemberId && (
             <motion.div
               initial={hasAnimated ? false : { opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
+              animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+              transition={hasAnimated ? { duration: 0 } : undefined}
               className="mt-3 text-xs text-[var(--tg-theme-hint-color)]"
             >
               Показаны задачи только выбранного участника
@@ -424,13 +426,14 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
               <motion.div
                 key="content"
                 initial={hasAnimated ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
+                animate={hasAnimated ? { opacity: 1 } : { opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={hasAnimated ? { duration: 0 } : undefined}
               >
                 <motion.div
                   variants={hasAnimated ? undefined : animationVariants.staggerContainer}
                   initial={hasAnimated ? false : "initial"}
-                  animate="animate"
+                  animate={hasAnimated ? false : "animate"}
                 >
                   {tasks.length > 0 ? (
                     tasks.map((task) => (
@@ -439,8 +442,9 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
                             <motion.div
                               key={`loading-${task.id}`}
                               initial={hasAnimated ? false : { opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
+                              animate={hasAnimated ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.95 }}
+                              transition={hasAnimated ? { duration: 0 } : undefined}
                               className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-4 mb-3 flex items-center justify-center"
                             >
                             <Loader2 className="w-5 h-5 text-[var(--tg-theme-button-color)] animate-spin" />
@@ -458,7 +462,8 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
                   ) : (
                     <motion.div
                       initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
+                      animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+                      transition={hasAnimated ? { duration: 0 } : undefined}
                       className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-8 text-center"
                     >
                       <p className="text-sm text-[var(--tg-theme-hint-color)]">

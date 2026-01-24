@@ -190,14 +190,14 @@ export default function TasksPage() {
           paddingBottom: "calc(6rem + env(safe-area-inset-bottom))",
         }}
       >
-        <motion.div
-          initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.4,
-            ease: [0.19, 1, 0.22, 1],
-          }}
-        >
+          <motion.div
+            initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+            animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+            transition={hasAnimated ? { duration: 0 } : {
+              duration: 0.4,
+              ease: [0.19, 1, 0.22, 1],
+            }}
+          >
           <h1 className="text-2xl font-bold text-[var(--tg-theme-text-color)] mb-6">
             Задачи
           </h1>
@@ -235,9 +235,9 @@ export default function TasksPage() {
               <motion.div
                 key="content"
                 initial={hasAnimated ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
+                animate={hasAnimated ? { opacity: 1 } : { opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{
+                transition={hasAnimated ? { duration: 0 } : {
                   duration: 0.3,
                   ease: [0.19, 1, 0.22, 1],
                 }}
@@ -246,7 +246,7 @@ export default function TasksPage() {
                   <motion.div
                     variants={hasAnimated ? undefined : animationVariants.staggerContainer}
                     initial={hasAnimated ? false : "initial"}
-                    animate="animate"
+                    animate={hasAnimated ? false : "animate"}
                   >
                     {filteredTasks.length > 0 ? (
                       filteredTasks.map((task) => (
@@ -255,9 +255,9 @@ export default function TasksPage() {
                             <motion.div
                               key={`loading-${task.id}`}
                               initial={hasAnimated ? false : { opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
+                              animate={hasAnimated ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.95 }}
-                              transition={{
+                              transition={hasAnimated ? { duration: 0 } : {
                                 duration: 0.2,
                                 ease: [0.19, 1, 0.22, 1],
                               }}
@@ -279,9 +279,9 @@ export default function TasksPage() {
                       <motion.div
                         key="empty"
                         initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        transition={{
+                        transition={hasAnimated ? { duration: 0 } : {
                           duration: 0.3,
                           ease: [0.19, 1, 0.22, 1],
                         }}

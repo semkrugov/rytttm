@@ -37,7 +37,7 @@ export default function ProjectsList({
         <motion.div
           variants={hasAnimated ? undefined : animationVariants.staggerContainer}
           initial={hasAnimated ? false : "initial"}
-          animate="animate"
+          animate={hasAnimated ? false : "animate"}
           className="space-y-3"
         >
           {projects.map((project) => (
@@ -45,9 +45,9 @@ export default function ProjectsList({
               key={project.id}
               variants={hasAnimated ? undefined : animationVariants.staggerItem}
               initial={hasAnimated ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
               whileTap={{ scale: 0.98 }}
-              transition={{
+              transition={hasAnimated ? { duration: 0 } : {
                 type: "spring",
                 stiffness: 300,
                 damping: 30,
@@ -75,7 +75,8 @@ export default function ProjectsList({
                 {project.active && (
                   <motion.div
                     initial={hasAnimated ? false : { scale: 0 }}
-                    animate={{ scale: 1 }}
+                    animate={hasAnimated ? { scale: 1 } : { scale: 1 }}
+                    transition={hasAnimated ? { duration: 0 } : undefined}
                     className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-[var(--tg-theme-bg-color)]"
                   />
                 )}
@@ -93,7 +94,8 @@ export default function ProjectsList({
               {project.unreadCount !== undefined && project.unreadCount > 0 && (
                 <motion.div
                   initial={hasAnimated ? false : { scale: 0 }}
-                  animate={{ scale: 1 }}
+                  animate={hasAnimated ? { scale: 1 } : { scale: 1 }}
+                  transition={hasAnimated ? { duration: 0 } : undefined}
                   className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--tg-theme-button-color)] flex items-center justify-center"
                 >
                   <span className="text-xs font-semibold text-white">
@@ -107,8 +109,8 @@ export default function ProjectsList({
       ) : (
         <motion.div
           initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
+          animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+          transition={hasAnimated ? { duration: 0 } : {
             duration: 0.3,
             ease: [0.19, 1, 0.22, 1],
           }}

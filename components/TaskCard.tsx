@@ -98,7 +98,7 @@ export default function TaskCard({
       layout
       variants={hasAnimated ? undefined : animationVariants.staggerItem}
       initial={hasAnimated ? false : "initial"}
-      animate="animate"
+      animate={hasAnimated ? { opacity: 1, y: 0 } : "animate"}
       exit={{ 
         opacity: 0, 
         x: -300,

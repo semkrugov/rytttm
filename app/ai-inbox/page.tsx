@@ -80,8 +80,8 @@ export default function AIInboxPage() {
       >
         <motion.div
           initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
+          animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+          transition={hasAnimated ? { duration: 0 } : {
             duration: 0.4,
             ease: [0.19, 1, 0.22, 1],
           }}
@@ -136,9 +136,9 @@ export default function AIInboxPage() {
                 <motion.div
                   key="empty"
                   initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  transition={{
+                  transition={hasAnimated ? { duration: 0 } : {
                     duration: 0.3,
                     ease: [0.19, 1, 0.22, 1],
                   }}

@@ -36,7 +36,7 @@ export default function FocusTasks({ tasks, onTaskToggle }: FocusTasksProps) {
       <motion.div
         variants={hasAnimated ? undefined : animationVariants.staggerContainer}
         initial={hasAnimated ? false : "initial"}
-        animate="animate"
+        animate={hasAnimated ? false : "animate"}
         className="space-y-3"
       >
         {tasks.map((task, index) => (
@@ -44,9 +44,9 @@ export default function FocusTasks({ tasks, onTaskToggle }: FocusTasksProps) {
             key={task.id}
             variants={hasAnimated ? undefined : animationVariants.staggerItem}
             initial={hasAnimated ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
             whileTap={{ scale: 0.98 }}
-            transition={{
+            transition={hasAnimated ? { duration: 0 } : {
               type: "spring",
               stiffness: 300,
               damping: 30,
@@ -78,8 +78,8 @@ export default function FocusTasks({ tasks, onTaskToggle }: FocusTasksProps) {
                       backgroundColor: generateColorFromString(task.projectTitle),
                     }}
                     initial={hasAnimated ? false : { opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{
+                    animate={hasAnimated ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
+                    transition={hasAnimated ? { duration: 0 } : {
                       duration: 0.2,
                       ease: [0.19, 1, 0.22, 1],
                     }}

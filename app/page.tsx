@@ -262,9 +262,9 @@ export default function Home() {
             <motion.div
               key="content"
               initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{
+              transition={hasAnimated ? { duration: 0 } : {
                 duration: 0.4,
                 ease: [0.19, 1, 0.22, 1],
               }}
@@ -273,8 +273,8 @@ export default function Home() {
               {mockNotifications.length > 0 && (
                 <motion.div
                   initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
+                  animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+                  transition={hasAnimated ? { duration: 0 } : {
                     duration: 0.3,
                     ease: [0.19, 1, 0.22, 1],
                   }}
@@ -350,8 +350,8 @@ export default function Home() {
               {/* Плашка с информацией о пользователе */}
               <motion.div
                 initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
+                animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+                transition={hasAnimated ? { duration: 0 } : {
                   duration: 0.3,
                   ease: [0.19, 1, 0.22, 1],
                 }}

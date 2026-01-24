@@ -248,9 +248,9 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
   return (
     <motion.div
       initial={hasAnimated ? false : { opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -50 }}
-      transition={{
+      transition={hasAnimated ? { duration: 0 } : {
         duration: 0.4,
         ease: [0.19, 1, 0.22, 1],
       }}
