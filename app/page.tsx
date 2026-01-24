@@ -125,18 +125,30 @@ export default function Home() {
 
       const { count: activeCount } = await countQuery;
 
-      // Загружаем проекты
-      const { data: projectsData, error: projectsError } = await supabase
-        .from("projects")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // Загружаем проекты, где текущий пользователь состоит в project_members
+      let projectsData: any[] = [];
+      let projectsCountData: number | null = 0;
 
-      if (projectsError) throw projectsError;
+      if (user?.id) {
+        const projectsQuery = supabase
+          .from("projects")
+          .select("*, project_members!inner(user_id)")
+          .eq("project_members.user_id", user.id)
+          .order("created_at", { ascending: false });
 
-      // Загружаем количество проектов
-      const { count: projectsCountData } = await supabase
-        .from("projects")
-        .select("*", { count: "exact", head: true });
+        const { data, error: projectsError } = await projectsQuery;
+
+        if (projectsError) throw projectsError;
+        projectsData = data || [];
+
+        // Загружаем количество проектов, где пользователь состоит
+        const { count } = await supabase
+          .from("projects")
+          .select("*, project_members!inner(user_id)", { count: "exact", head: true })
+          .eq("project_members.user_id", user.id);
+        
+        projectsCountData = count;
+      }
 
       // Преобразуем задачи
       // В базе нет поля status, поэтому используем дефолтное значение "todo"
