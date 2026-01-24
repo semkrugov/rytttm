@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Loader2 } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -11,29 +11,118 @@ import { Task, TaskStatus } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { haptics } from "@/lib/telegram";
+import WebApp from "@twa-dev/sdk";
 
 export default function TasksPage() {
   const [activeStatus, setActiveStatus] = useState<TaskStatus>("todo");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const channelRef = useRef<any>(null);
+
+  // Определяем project_id из Telegram чата
+  useEffect(() => {
+    const determineProjectId = async () => {
+      if (typeof window === "undefined") return;
+
+      try {
+        // Пытаемся получить chat_id из Telegram WebApp
+        const chatId = (WebApp.initDataUnsafe as any)?.chat?.id;
+        
+        if (chatId) {
+          // Ищем проект по telegram_chat_id
+          const { data: project, error } = await supabase
+            .from("projects")
+            .select("id")
+            .eq("telegram_chat_id", chatId)
+            .single();
+
+          if (error) {
+            console.error("Error finding project:", error);
+            return;
+          }
+
+          if (project) {
+            console.log("Определен project_id из Telegram чата:", project.id);
+            setProjectId(project.id);
+          }
+        } else {
+          console.warn("Chat ID не найден в Telegram WebApp. Показываем все задачи.");
+        }
+      } catch (error) {
+        console.error("Error determining project ID:", error);
+      }
+    };
+
+    determineProjectId();
+  }, []);
 
   // Загрузка задач из Supabase
   useEffect(() => {
-    loadTasks();
-  }, []);
+    if (projectId !== null) {
+      loadTasks();
+    }
+  }, [projectId]);
+
+  // Realtime подписка на изменения задач
+  useEffect(() => {
+    if (!projectId) return;
+
+    // Отключаем предыдущую подписку, если есть
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    // Создаем новую подписку
+    const channel = supabase
+      .channel("public:tasks")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tasks",
+          filter: projectId ? `project_id=eq.${projectId}` : undefined,
+        },
+        (payload) => {
+          console.log("Realtime событие:", payload);
+          loadTasks();
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+  }, [projectId]);
 
   const loadTasks = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from("tasks")
         .select("*")
         .order("created_at", { ascending: false });
 
+      // Фильтруем по project_id, если он определен
+      if (projectId) {
+        query = query.eq("project_id", projectId);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
 
+      console.log("Загруженные задачи:", data);
+
       // Преобразуем данные из Supabase в формат Task
+      // В базе нет поля status, поэтому используем дефолтное значение "todo"
       const formattedTasks: Task[] = (data || []).map((task: any) => ({
         id: task.id,
         title: task.title,
@@ -50,7 +139,7 @@ export default function TasksPage() {
               month: "2-digit",
             })}`
           : undefined,
-        status: task.status as TaskStatus,
+        status: (task.status as TaskStatus) || "todo", // Дефолтное значение, если status отсутствует
         timeTracking: task.time_tracking
           ? formatTimeTracking(task.time_tracking)
           : undefined,
@@ -74,23 +163,26 @@ export default function TasksPage() {
       .padStart(2, "0")}`;
   };
 
-  const filteredTasks = tasks.filter((task) => task.status === activeStatus);
+  // Фильтруем задачи по статусу
+  // Если в базе нет поля status, все задачи считаются "todo"
+  const filteredTasks = tasks.filter((task) => {
+    // Если статус не определен, показываем как "todo"
+    const taskStatus = task.status || "todo";
+    return taskStatus === activeStatus;
+  });
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     try {
       setUpdating(taskId);
       
-      const { error } = await supabase
-        .from("tasks")
-        .update({ status: newStatus })
-        .eq("id", taskId);
-
-      if (error) throw error;
+      // В базе нет поля status, поэтому обновляем только локальное состояние
+      // TODO: Добавить поле status в таблицу tasks или использовать другое поле
+      console.warn("Попытка обновить status, но поле отсутствует в базе данных");
 
       // Обновляем локальное состояние
       setTasks((prevTasks) =>
         prevTasks.map((task) =>
-          task.id === taskId ? { ...task, status: newStatus } : task
+          task.id === taskId ? { ...task, status: newStatus, completed: newStatus === "done" } : task
         )
       );
     } catch (error) {

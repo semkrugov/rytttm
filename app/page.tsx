@@ -12,6 +12,7 @@ import { mockNotifications } from "@/lib/mockData";
 import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import WebApp from "@twa-dev/sdk";
 
 export default function Home() {
   const { user, loading: authLoading } = useTelegramAuth();
@@ -20,52 +21,106 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeTasksCount, setActiveTasksCount] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
+  const [projectId, setProjectId] = useState<string | null>(null);
 
   // Отладка статуса пользователя
   useEffect(() => {
     console.log("User status:", user);
   }, [user]);
 
+  // Определяем project_id из Telegram чата
   useEffect(() => {
-    loadData();
+    const determineProjectId = async () => {
+      if (typeof window === "undefined") return;
+
+      try {
+        // Пытаемся получить chat_id из Telegram WebApp
+        const chatId = (WebApp.initDataUnsafe as any)?.chat?.id;
+        
+        if (chatId) {
+          // Ищем проект по telegram_chat_id
+          const { data: project, error } = await supabase
+            .from("projects")
+            .select("id")
+            .eq("telegram_chat_id", chatId)
+            .single();
+
+          if (error) {
+            console.error("Error finding project:", error);
+            return;
+          }
+
+          if (project) {
+            console.log("Определен project_id из Telegram чата:", project.id);
+            setProjectId(project.id);
+          }
+        } else {
+          console.warn("Chat ID не найден в Telegram WebApp. Показываем все задачи.");
+        }
+      } catch (error) {
+        console.error("Error determining project ID:", error);
+      }
+    };
+
+    determineProjectId();
   }, []);
+
+  useEffect(() => {
+    if (projectId !== null) {
+      loadData();
+    }
+  }, [projectId]);
 
   const loadData = async () => {
     try {
       setLoading(true);
 
-      // Загружаем активные задачи (топ-3 для "Мой Фокус")
-      const { data: tasksData, error: tasksError } = await supabase
+      // Загружаем задачи (топ-3 для "Мой Фокус")
+      // В базе нет поля status, поэтому загружаем все задачи
+      let tasksQuery = supabase
         .from("tasks")
         .select("*")
-        .in("status", ["todo", "doing"])
         .order("created_at", { ascending: false })
         .limit(3);
 
+      // Фильтруем по project_id, если он определен
+      if (projectId) {
+        tasksQuery = tasksQuery.eq("project_id", projectId);
+      }
+
+      const { data: tasksData, error: tasksError } = await tasksQuery;
+
       if (tasksError) throw tasksError;
 
-      // Загружаем все активные задачи для подсчета
-      const { count: activeCount } = await supabase
+      console.log("Загруженные задачи на главной:", tasksData);
+
+      // Загружаем все задачи для подсчета
+      let countQuery = supabase
         .from("tasks")
-        .select("*", { count: "exact", head: true })
-        .in("status", ["todo", "doing"]);
+        .select("*", { count: "exact", head: true });
+
+      if (projectId) {
+        countQuery = countQuery.eq("project_id", projectId);
+      }
+
+      const { count: activeCount } = await countQuery;
 
       // Загружаем проекты
+      // В базе нет поля status, поэтому загружаем все проекты
       const { data: projectsData, error: projectsError } = await supabase
         .from("projects")
         .select("*")
-        .eq("status", "active")
         .order("created_at", { ascending: false });
 
       if (projectsError) throw projectsError;
 
-      // Загружаем количество активных проектов
+      // Загружаем количество проектов
       const { count: projectsCountData } = await supabase
         .from("projects")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "active");
+        .select("*", { count: "exact", head: true });
 
       // Преобразуем задачи
+      // В базе нет поля status, поэтому используем дефолтное значение "todo"
       const formattedTasks: Task[] = (tasksData || []).map((task: any) => ({
         id: task.id,
         title: task.title,
@@ -73,16 +128,17 @@ export default function Home() {
         deadline: task.deadline
           ? new Date(task.deadline).toLocaleDateString("ru-RU")
           : undefined,
-        status: task.status as "todo" | "doing" | "done",
+        status: (task.status as "todo" | "doing" | "done") || "todo",
         completed: task.status === "done",
       }));
 
       // Преобразуем проекты
+      // В базе нет поля status, поэтому считаем все проекты активными
       const formattedProjects: Project[] = (projectsData || []).map(
         (project: any) => ({
           id: project.id,
           title: project.title,
-          active: project.status === "active",
+          active: true, // Все проекты считаем активными
           unreadCount: 0, // TODO: Подсчитать из задач
         })
       );
