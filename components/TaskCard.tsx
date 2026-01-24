@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { Play, Pause, Calendar, Check } from "lucide-react";
 import { Task, TaskStatus } from "@/types";
@@ -22,6 +23,7 @@ export default function TaskCard({
   onStatusChange,
   onTimeTrackingToggle,
 }: TaskCardProps) {
+  const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const x = useMotionValue(0);
@@ -135,9 +137,14 @@ export default function TaskCard({
 
       {/* Основная карточка задачи */}
       <motion.div
+        onClick={() => {
+          if (!isDragging) {
+            router.push(`/tasks/${task.id}`);
+          }
+        }}
         className={cn(
           "bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-4",
-          "relative z-10",
+          "relative z-10 cursor-pointer",
           isDragging && "shadow-lg"
         )}
       >
