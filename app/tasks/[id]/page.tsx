@@ -34,6 +34,7 @@ interface AssigneeProfile {
   username: string | null;
   avatar_url: string | null;
   display_name: string | null;
+  position: string | null;
 }
 
 const STATUS_MAP: Record<string, string> = {

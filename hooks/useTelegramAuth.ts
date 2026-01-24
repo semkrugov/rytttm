@@ -19,6 +19,7 @@ interface Profile {
   telegram_id: number;
   username: string | null;
   avatar_url: string | null;
+  position: string | null;
   created_at: string;
   updated_at: string;
 }
