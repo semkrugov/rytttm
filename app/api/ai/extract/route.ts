@@ -240,7 +240,12 @@ export async function POST(request: NextRequest) {
                 const telegramResult = await telegramResponse.json();
 
                 if (!telegramResponse.ok) {
-                  console.error("Failed to send Telegram notification:", telegramResult);
+                  // Обрабатываем ошибку 403 Forbidden (пользователь заблокировал бота)
+                  if (telegramResponse.status === 403) {
+                    console.log("Cannot send message to user (403 Forbidden - user may have blocked the bot):", assigneeProfile.telegram_id);
+                  } else {
+                    console.error("Failed to send Telegram notification:", telegramResult);
+                  }
                 } else {
                   console.log("Notification sent successfully to user:", assigneeProfile.telegram_id);
                 }

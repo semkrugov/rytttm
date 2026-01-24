@@ -29,7 +29,8 @@ export const POST = async (request: NextRequest) => {
       return NextResponse.json({ ok: true });
     }
 
-    // Ищем или создаем проект
+    // Авто-регистрация: обеспечиваем наличие проекта, профиля и участника
+    // 1. Ищем или создаем проект
     const chatTitle = body.message.chat.title || `Chat ${chatId}`;
     const projectUuid = await ensureProject(chatId, chatTitle);
 
@@ -38,15 +39,20 @@ export const POST = async (request: NextRequest) => {
       return NextResponse.json({ ok: true });
     }
 
-    console.log(`Нашли проект с UUID: ${projectUuid}`);
+    console.log(`[BOT] Нашли проект с UUID: ${projectUuid}`);
 
-    // Обеспечиваем наличие профиля пользователя
+    // 2. Ищем или создаем профиль пользователя (сохраняем first_name как display_name)
     const userProfileId = await ensureProfile(telegramUserId, body.message.from);
 
-    if (userProfileId) {
-      // Добавляем пользователя в участники проекта
-      await ensureProjectMember(projectUuid, userProfileId);
+    if (!userProfileId) {
+      console.error("[BOT] Failed to get or create profile");
+      return NextResponse.json({ ok: true });
     }
+
+    // 3. Добавляем пользователя в участники проекта (используем upsert для избежания дублирования)
+    await ensureProjectMember(projectUuid, userProfileId);
+
+    console.log(`[BOT] Авто-регистрация завершена: пользователь ${userProfileId} добавлен в проект ${projectUuid}`);
 
     // Вызываем наш API /api/ai/extract
     try {
@@ -136,12 +142,27 @@ async function ensureProfile(
   // Ищем профиль по telegram_id
   const { data: existingProfile, error: selectError } = await supabase
     .from("profiles")
-    .select("id")
+    .select("id, display_name")
     .eq("telegram_id", telegramUserId)
     .single();
 
   if (existingProfile) {
     console.log("[BOT] Profile found:", existingProfile.id);
+    
+    // Обновляем display_name, если его нет, но есть first_name
+    if (!existingProfile.display_name && telegramUser.first_name) {
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ display_name: telegramUser.first_name })
+        .eq("id", existingProfile.id);
+      
+      if (updateError) {
+        console.error("[BOT] Error updating display_name:", updateError);
+      } else {
+        console.log("[BOT] Updated display_name for profile:", existingProfile.id);
+      }
+    }
+    
     return existingProfile.id;
   }
 
@@ -151,11 +172,13 @@ async function ensureProfile(
   }
 
   // Если профиля нет, создаем его
+  // Сохраняем first_name как display_name
   const { data: newProfile, error: insertError } = await supabase
     .from("profiles")
     .insert({
       telegram_id: telegramUserId,
       username: telegramUser.username || null,
+      display_name: telegramUser.first_name || null,
     })
     .select("id")
     .single();
