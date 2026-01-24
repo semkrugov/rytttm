@@ -79,7 +79,21 @@ export const POST = async (request: NextRequest) => {
 
     // Авто-регистрация: обеспечиваем наличие проекта, профиля и участника
     // 1. Ищем или создаем проект
-    const chatTitle = body.message.chat.title || `Chat ${chatId}`;
+    // Получаем название чата: для групп - title, для личных чатов - имя пользователя
+    let chatTitle = body.message.chat.title;
+    if (!chatTitle) {
+      // Для личных чатов используем имя пользователя
+      const chat = body.message.chat;
+      if (chat.type === "private") {
+        const firstName = chat.first_name || "";
+        const lastName = chat.last_name || "";
+        const username = chat.username ? `@${chat.username}` : "";
+        chatTitle = [firstName, lastName].filter(Boolean).join(" ") || username || `User ${chatId}`;
+      } else {
+        // Для других типов чатов используем fallback
+        chatTitle = `Chat ${chatId}`;
+      }
+    }
     const projectUuid = await ensureProject(chatId, chatTitle);
 
     if (!projectUuid) {
