@@ -15,13 +15,15 @@ export default function AIInboxPage() {
   const [items, setItems] = useState<AIInboxItem[]>(mockAIInboxItems);
   const [toastMessage, setToastMessage] = useState<string>("");
   const [showToast, setShowToast] = useState(false);
-  const [hasAnimated, setHasAnimated] = useState(false);
-
-  useEffect(() => {
-    // Отмечаем, что анимация уже проиграна после первого рендера
-    const timer = setTimeout(() => setHasAnimated(true), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const [hasAnimated] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const animated = sessionStorage.getItem("app_has_animated");
+    if (!animated) {
+      sessionStorage.setItem("app_has_animated", "true");
+      return false;
+    }
+    return true;
+  });
 
   const handleConfirm = (id: string) => {
     if (typeof window !== "undefined") {

@@ -27,13 +27,15 @@ export default function Home() {
   const [projectsCount, setProjectsCount] = useState(0);
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("my");
   const channelRef = useRef<any>(null);
-  const [hasAnimated, setHasAnimated] = useState(false);
-
-  useEffect(() => {
-    // Отмечаем, что анимация уже проиграна после первого рендера
-    const timer = setTimeout(() => setHasAnimated(true), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const [hasAnimated] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const animated = sessionStorage.getItem("app_has_animated");
+    if (!animated) {
+      sessionStorage.setItem("app_has_animated", "true");
+      return false;
+    }
+    return true;
+  });
 
   // Отладка статуса пользователя
   useEffect(() => {

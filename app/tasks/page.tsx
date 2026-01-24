@@ -18,13 +18,15 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
-  const [hasAnimated, setHasAnimated] = useState(false);
-
-  useEffect(() => {
-    // Отмечаем, что анимация уже проиграна после первого рендера
-    const timer = setTimeout(() => setHasAnimated(true), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const [hasAnimated] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const animated = sessionStorage.getItem("app_has_animated");
+    if (!animated) {
+      sessionStorage.setItem("app_has_animated", "true");
+      return false;
+    }
+    return true;
+  });
 
   // Загрузка задач из Supabase
   useEffect(() => {
