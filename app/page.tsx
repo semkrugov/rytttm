@@ -354,6 +354,7 @@ export default function Home() {
     );
   }
 
+  const activeNotifications = notifications.length > 0 ? notifications : (isDemoMode ? demoNotifications : mockNotifications);
   const visibleTasks = tasks;
   const visibleProjects = projects;
 
@@ -423,14 +424,21 @@ export default function Home() {
                   <div className="w-10 h-10 shrink-0 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80 mr-[10px]" />
                 </div>
 
-                {notifications.length > 0 && (
+                {activeNotifications.length > 0 && (
                   <AttentionCards
-                    notifications={notifications.map((n) => ({
+                    notifications={activeNotifications.map((n) => ({
                       id: "id" in n ? n.id : undefined,
                       title: n.title,
                       message: n.message,
                       time: n.time,
                     }))}
+                    isExpanded={isAttentionExpanded}
+                    onToggleExpand={() => {
+                      setIsAttentionExpanded((prev) => !prev);
+                    }}
+                    hasAnimated={hasAnimated}
+                  />
+                )}
                     isExpanded={isAttentionExpanded}
                     onToggleExpand={() => {
                       setIsAttentionExpanded((prev) => !prev);
