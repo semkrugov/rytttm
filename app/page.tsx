@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Bell } from "lucide-react";
+import { Loader2, Bell, ChevronDown } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import NotificationCard from "@/components/NotificationCard";
 import FocusTasks from "@/components/FocusTasks";
@@ -28,6 +28,7 @@ export default function Home() {
   const [activeTasksCount, setActiveTasksCount] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("my");
+  const [isAttentionExpanded, setIsAttentionExpanded] = useState(false);
   const channelRef = useRef<any>(null);
 
   // Отладка статуса пользователя
@@ -273,22 +274,39 @@ export default function Home() {
                     }
               }
             >
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
                 {/* Хедер как в макете "header" */}
-                <div className="flex items-center justify-between h-14">
-                  <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80" />
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="text-xs uppercase tracking-[0.2em] text-[var(--tg-theme-hint-color)]">
-                      rytttm
-                    </div>
-                    <div className="text-sm font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#C3CBFF] to-[#F6B3FF]">
-                      beta
+                <div className="h-[60px] flex items-center gap-2">
+                  {/* left iconFrame 40x40 с отступом 10 */}
+                  <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80 ml-[10px]" />
+
+                  {/* logoFrame 270x40, логотип строго по центру */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="h-[27px] flex items-center gap-3">
+                      {/* Градиентный знак логотипа */}
+                      <div
+                        className="w-[62px] h-[18px] rounded-sm"
+                        style={{
+                          backgroundImage:
+                            "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
+                        }}
+                      />
+                      {/* Разделитель как белая полоска */}
+                      <div className="w-[2px] h-[23px] bg-white/90 rounded-full" />
+                      {/* Надпись beta */}
+                      <span className="text-[13px] leading-none text-white">
+                        beta
+                      </span>
                     </div>
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80" />
+
+                  {/* right iconFrame 40x40 с отступом 10 справа */}
+                  <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80 mr-[10px]" />
                 </div>
 
-                {/* Блок уведомлений / Attention */}
+                {/* Блок уведомлений / Attention:
+                    - 1–2 уведомления: обычная карточка
+                    - >2: компактная карточка + возможность раскрыть список */}
                 {mockNotifications.length > 0 && (
                   <motion.div
                     initial={hasAnimated ? false : { opacity: 0, y: 20 }}
@@ -303,28 +321,111 @@ export default function Home() {
                             ease: [0.19, 1, 0.22, 1],
                           }
                     }
-                    className="rounded-[14px] p-[14px] bg-gradient-to-br from-[#232427] via-[#18191c] to-[#101113]"
+                    className="mx-[18px] rounded-[14px] p-[16px] bg-gradient-to-br from-[#232427] via-[#18191c] to-[#101113]"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-[var(--tg-theme-button-color)]/10 flex items-center justify-center">
-                        <Bell className="w-5 h-5 text-[var(--tg-theme-button-color)]" />
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-white">
-                            {mockNotifications[0].title}
-                          </p>
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => {
+                        if (mockNotifications.length > 2) {
+                          setIsAttentionExpanded((prev) => !prev);
+                        }
+                      }}
+                    >
+                      {/* Верхняя часть карточки — как в базовом состоянии */}
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className="flex-shrink-0 w-[27px] h-[29px] flex items-center justify-center">
+                          <div className="w-6 h-6 rounded-full bg-transparent flex items-center justify-center">
+                            <Bell className="w-[22px] h-[22px] text-[#9098A7]" />
+                          </div>
                         </div>
-                        <p className="text-xs text-white/80 leading-snug">
-                          {mockNotifications[0].message}
-                        </p>
-                        {mockNotifications[0].time && (
-                          <p className="text-[11px] text-[var(--tg-theme-hint-color)]">
-                            {mockNotifications[0].time}
+
+                        {/* TextContent */}
+                        <div className="flex-1 min-w-0 space-y-2">
+                          {/* Header */}
+                          <div className="flex items-center justify-between">
+                            <p className="text-[15px] font-semibold text-white">
+                              Новая задача
+                            </p>
+                            {mockNotifications.length > 2 && (
+                              <motion.div
+                                initial={false}
+                                animate={{
+                                  rotate: isAttentionExpanded ? 180 : 0,
+                                }}
+                                transition={{
+                                  duration: 0.2,
+                                  ease: [0.19, 1, 0.22, 1],
+                                }}
+                                className="ml-2 text-[#9098A7]"
+                              >
+                                <ChevronDown className="w-4 h-4" />
+                              </motion.div>
+                            )}
+                          </div>
+
+                          {/* Text первого уведомления */}
+                          <p className="text-[13px] leading-snug text-white">
+                            {mockNotifications[0].message}
                           </p>
-                        )}
+
+                          {/* AddText + time / счётчик дополнительных уведомлений */}
+                          <div className="flex items-center justify-between mt-1">
+                            {mockNotifications[0].time && (
+                              <p className="text-[12px] text-[#9098A7]">
+                                {mockNotifications[0].time}
+                              </p>
+                            )}
+
+                            {mockNotifications.length > 2 && !isAttentionExpanded && (
+                              <p className="text-[12px] text-[#6CC0FF]">
+                                Ещё {mockNotifications.length - 1} уведомлений
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Правый иконка-комментарий */}
+                        <div className="flex-shrink-0 w-[37px] h-[37px] flex items-center justify-center">
+                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center">
+                            <span className="block w-full h-full rounded-full bg-[#6CC0FF]" />
+                          </div>
+                        </div>
                       </div>
-                    </div>
+
+                      {/* Раскрытое состояние: список уведомлений */}
+                      {mockNotifications.length > 2 && isAttentionExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{
+                            duration: 0.2,
+                            ease: [0.19, 1, 0.22, 1],
+                          }}
+                          className="mt-4 space-y-3 border-t border-white/5 pt-3"
+                        >
+                          {mockNotifications.slice(1).map((n, idx) => (
+                            <div
+                              key={`${n.title}-${idx}`}
+                              className="flex items-start gap-3"
+                            >
+                              <div className="flex-shrink-0 w-[6px] h-[6px] rounded-full bg-[#6CC0FF] mt-[6px]" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] text-white leading-snug">
+                                  {n.message}
+                                </p>
+                                {n.time && (
+                                  <p className="mt-1 text-[12px] text-[#9098A7]">
+                                    {n.time}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </button>
                   </motion.div>
                 )}
 

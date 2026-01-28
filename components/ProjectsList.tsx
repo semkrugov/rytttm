@@ -63,7 +63,8 @@ export default function ProjectsList({
                 damping: 30,
               }}
               onClick={() => onProjectClick?.(project.id)}
-              className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-4 flex items-center gap-3 cursor-pointer"
+              // Карточка как ProjectCards в макете: прозрачный фон, тонкая граница
+              className="rounded-[14px] border border-[#282A2D] px-[18px] py-[16px] flex items-center gap-3 cursor-pointer"
             >
               <div className="relative flex-shrink-0">
                 <div

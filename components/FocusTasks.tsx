@@ -65,7 +65,8 @@ export default function FocusTasks({
               damping: 30,
             }}
             className={cn(
-              "bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-4",
+              // Карточка как FocusCards в макете: прозрачный фон, тонкая граница
+              "rounded-[14px] border border-[#282A2D] px-[18px] py-[16px]",
               "flex items-center gap-3",
               task.completed && "opacity-60"
             )}
