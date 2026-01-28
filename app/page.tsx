@@ -117,8 +117,8 @@ export default function Home() {
 
     if (user) {
       loadData();
-      // Изначально можно загрузить историю уведомлений или оставить моки
-      setNotifications(mockNotifications);
+      // Для реальных пользователей изначально уведомлений нет
+      setNotifications([]);
     } else {
       // Инициализируем демо-данными сразу, если нет пользователя
       setTasks(demoTasks);
@@ -360,7 +360,9 @@ export default function Home() {
     );
   }
 
-  const activeNotifications = notifications.length > 0 ? notifications : (isDemoMode ? demoNotifications : mockNotifications);
+  const activeNotifications = isDemoMode 
+    ? (notifications.length > 0 ? notifications : demoNotifications)
+    : notifications;
   const visibleTasks = tasks;
   const visibleProjects = projects;
 
