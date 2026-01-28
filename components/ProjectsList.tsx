@@ -48,9 +48,9 @@ export default function ProjectsList({
           variants={hasAnimated ? undefined : animationVariants.staggerContainer}
           initial={hasAnimated ? false : "initial"}
           animate={hasAnimated ? false : "animate"}
-          className="space-y-3"
+          className="flex flex-col"
         >
-          {projects.map((project) => (
+          {projects.map((project, index) => (
             <motion.div
               key={project.id}
               variants={hasAnimated ? undefined : animationVariants.staggerItem}
@@ -63,58 +63,44 @@ export default function ProjectsList({
                 damping: 30,
               }}
               onClick={() => onProjectClick?.(project.id)}
-              // Карточка как ProjectCards в макете: прозрачный фон, тонкая граница
-              className="rounded-[14px] border border-[#282A2D] px-[18px] py-[16px] flex items-center gap-3 cursor-pointer"
-            >
-              <div className="relative flex-shrink-0">
-                <div
-                  className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center",
-                    "text-white font-semibold text-sm",
-                    project.avatar
-                      ? "bg-cover bg-center"
-                      : "bg-[var(--tg-theme-button-color)]"
-                  )}
-                  style={
-                    project.avatar
-                      ? { backgroundImage: `url(${project.avatar})` }
-                      : undefined
-                  }
-                >
-                  {!project.avatar && project.title.charAt(0).toUpperCase()}
-                </div>
-                {project.active && (
-                  <motion.div
-                    initial={hasAnimated ? false : { scale: 0 }}
-                    animate={hasAnimated ? { scale: 1 } : { scale: 1 }}
-                    transition={hasAnimated ? { duration: 0 } : undefined}
-                    className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-[var(--tg-theme-bg-color)]"
-                  />
+            className={cn(
+              "flex items-center gap-3 px-[18px] py-[18px]",
+              index !== projects.length - 1 && "border-b border-[#28292D]",
+              "cursor-pointer"
+            )}
+            onClick={() => onProjectClick?.(project.id)}
+          >
+            <div className="relative flex-shrink-0">
+              <div
+                className={cn(
+                  "w-[60px] h-[60px] rounded-full flex items-center justify-center",
+                  "text-white font-bold text-xl",
+                  project.avatar
+                    ? "bg-cover bg-center"
+                    : "bg-gradient-to-b from-[#9BE1FF] to-[#6CC2FF]"
                 )}
+                style={
+                  project.avatar
+                    ? { backgroundImage: `url(${project.avatar})` }
+                    : undefined
+                }
+              >
+                {!project.avatar && project.title.charAt(0).toUpperCase()}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--tg-theme-text-color)]">
-                  {project.title}
-                </p>
-                {project.unreadCount !== undefined && project.unreadCount > 0 && (
-                  <p className="text-xs text-[var(--tg-theme-hint-color)] mt-1">
-                    {project.unreadCount} новых задач
-                  </p>
-                )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[16px] font-normal text-white truncate">
+                {project.title}
+              </p>
+            </div>
+            {project.unreadCount !== undefined && project.unreadCount > 0 && (
+              <div className="flex-shrink-0 w-[24px] h-[24px] rounded-full bg-[#6CC2FF] flex items-center justify-center">
+                <span className="text-[12px] font-bold text-white">
+                  {project.unreadCount}
+                </span>
               </div>
-              {project.unreadCount !== undefined && project.unreadCount > 0 && (
-                <motion.div
-                  initial={hasAnimated ? false : { scale: 0 }}
-                  animate={hasAnimated ? { scale: 1 } : { scale: 1 }}
-                  transition={hasAnimated ? { duration: 0 } : undefined}
-                  className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--tg-theme-button-color)] flex items-center justify-center"
-                >
-                  <span className="text-xs font-semibold text-white">
-                    {project.unreadCount > 9 ? "9+" : project.unreadCount}
-                  </span>
-                </motion.div>
-              )}
-            </motion.div>
+            )}
+          </motion.div>
           ))}
         </motion.div>
       ) : (

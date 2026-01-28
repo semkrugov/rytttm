@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { animationVariants } from "@/lib/animations";
 import TaskCheckbox from "./TaskCheckbox";
 import { cn, generateColorFromString } from "@/lib/utils";
@@ -50,66 +50,51 @@ export default function FocusTasks({
         variants={hasAnimated ? undefined : animationVariants.staggerContainer}
         initial={hasAnimated ? false : "initial"}
         animate={hasAnimated ? false : "animate"}
-        className="space-y-3"
+        className="flex flex-col"
       >
-        {tasks.map((task, index) => (
-          <motion.div
-            key={task.id}
-            variants={hasAnimated ? undefined : animationVariants.staggerItem}
-            initial={hasAnimated ? false : { opacity: 0, y: 10 }}
-            animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-            whileTap={{ scale: 0.98 }}
-            transition={hasAnimated ? { duration: 0 } : {
-              type: "spring",
-              stiffness: 300,
-              damping: 30,
-            }}
-            className={cn(
-              // Карточка как FocusCards в макете: прозрачный фон, тонкая граница
-              "rounded-[14px] border border-[#282A2D] px-[18px] py-[16px]",
-              "flex items-center gap-3",
-              task.completed && "opacity-60"
-            )}
-          >
-            <TaskCheckbox
-              checked={task.completed}
-              onChange={(checked) => onTaskToggle(task.id, checked)}
-            />
-            <div className="flex-1 min-w-0">
-              <p
-                className={cn(
-                  "text-sm font-medium text-[var(--tg-theme-text-color)]",
-                  task.completed && "line-through"
-                )}
-              >
-                {task.title}
-              </p>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {tasks.map((task, index) => (
+            <motion.div
+              key={task.id}
+              layout
+              variants={hasAnimated ? undefined : animationVariants.staggerItem}
+              initial={hasAnimated ? false : { opacity: 0, y: 10 }}
+              animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+              whileTap={{ scale: 0.98 }}
+              transition={hasAnimated ? { duration: 0 } : {
+                type: "spring",
+                stiffness: 300,
+                damping: 30,
+              }}
+              className={cn(
+                "flex items-center gap-3 px-[18px] py-[18px]",
+                index !== tasks.length - 1 && "border-b border-[#28292D]",
+                task.completed && "opacity-60"
+              )}
+            >
+              <TaskCheckbox
+                checked={task.completed}
+                onChange={(checked) => onTaskToggle(task.id, checked)}
+              />
+              <div className="flex-1 min-w-0">
+                <p
+                  className={cn(
+                    "text-[16px] font-normal text-white truncate",
+                    task.completed && "line-through opacity-50"
+                  )}
+                >
+                  {task.title}
+                </p>
                 {task.projectTitle && (
-                  <motion.span
-                    className="text-xs px-2 py-0.5 rounded-full text-white font-medium"
-                    style={{
-                      backgroundColor: generateColorFromString(task.projectTitle),
-                    }}
-                    initial={hasAnimated ? false : { opacity: 0, scale: 0.8 }}
-                    animate={hasAnimated ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
-                    transition={hasAnimated ? { duration: 0 } : {
-                      duration: 0.2,
-                      ease: [0.19, 1, 0.22, 1],
-                    }}
-                  >
+                  <p className="text-[12px] text-[#9097A7] mt-0.5">
                     {task.projectTitle}
-                  </motion.span>
-                )}
-                {task.deadline && (
-                  <p className="text-xs text-[var(--tg-theme-hint-color)]">
-                    {task.deadline}
                   </p>
                 )}
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

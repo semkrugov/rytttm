@@ -25,14 +25,19 @@ export default function TaskCheckbox({
 
   return (
     <motion.button
-      onClick={handleClick}
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleClick();
+      }}
       disabled={disabled}
       className={cn(
-        "w-6 h-6 rounded-lg border-2 flex items-center justify-center",
+        "w-[25px] h-[25px] rounded-lg border-[3px] flex items-center justify-center relative z-20",
         "transition-colors duration-200",
         checked
-          ? "bg-[var(--tg-theme-button-color)] border-[var(--tg-theme-button-color)]"
-          : "border-[var(--tg-theme-hint-color)]/30 bg-transparent",
+          ? "bg-[#6CC2FF] border-[#6CC2FF]"
+          : "border-[#9097A7] bg-transparent",
         disabled && "opacity-50 cursor-not-allowed"
       )}
       whileTap={{ scale: 0.9 }}
@@ -44,14 +49,14 @@ export default function TaskCheckbox({
     >
       {checked && (
         <motion.div
-          initial={{ scale: 0, opacity: 0 }}
+          initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{
             duration: 0.2,
             ease: [0.19, 1, 0.22, 1],
           }}
         >
-          <Check className="w-4 h-4 text-white" strokeWidth={3} />
+          <Check className="w-[14px] h-[14px] text-white" strokeWidth={4} />
         </motion.div>
       )}
     </motion.button>
