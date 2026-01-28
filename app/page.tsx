@@ -439,13 +439,6 @@ export default function Home() {
                     hasAnimated={hasAnimated}
                   />
                 )}
-                    isExpanded={isAttentionExpanded}
-                    onToggleExpand={() => {
-                      setIsAttentionExpanded((prev) => !prev);
-                    }}
-                    hasAnimated={hasAnimated}
-                  />
-                )}
 
                 <motion.section
                   initial={hasAnimated ? false : { opacity: 0, y: 20 }}
