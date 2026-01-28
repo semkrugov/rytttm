@@ -63,13 +63,12 @@ export default function ProjectsList({
                 damping: 30,
               }}
               onClick={() => onProjectClick?.(project.id)}
-            className={cn(
-              "flex items-center gap-3 px-[18px] py-[18px]",
-              index !== projects.length - 1 && "border-b border-[#28292D]",
-              "cursor-pointer"
-            )}
-            onClick={() => onProjectClick?.(project.id)}
-          >
+              className={cn(
+                "flex items-center gap-3 px-[18px] py-[18px]",
+                index !== projects.length - 1 && "border-b border-[#28292D]",
+                "cursor-pointer"
+              )}
+            >
             <div className="relative flex-shrink-0">
               <div
                 className={cn(
