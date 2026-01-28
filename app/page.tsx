@@ -117,8 +117,49 @@ export default function Home() {
 
     if (user) {
       loadData();
-      // Для реальных пользователей изначально уведомлений нет
       setNotifications([]);
+
+      const fetchRecentNotifications = async () => {
+        try {
+          const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const { data } = await supabase
+            .from("tasks")
+            .select("id, title, created_at, assignee_id")
+            .gte("created_at", since)
+            .or(`assignee_id.eq.${user.id},assignee_id.is.null`)
+            .order("created_at", { ascending: false })
+            .limit(20);
+
+          if (!data?.length) return;
+
+          const formatTime = (d: string) => {
+            const min = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+            if (min < 1) return "Только что";
+            if (min < 60) return `${min} мин. назад`;
+            const h = Math.floor(min / 60);
+            if (h < 24) return `${h} ч. назад`;
+            const day = Math.floor(h / 24);
+            return day === 1 ? "Вчера" : `${day} дн. назад`;
+          };
+
+          const list = data.map((t: any) => ({
+            id: t.id,
+            title: "Новая задача",
+            message: `ИИ нашёл новую задачу «${t.title}».`,
+            time: formatTime(t.created_at),
+          }));
+
+          setNotifications((prev) => {
+            const seen = new Set(prev.map((n) => n.id));
+            const added = list.filter((n) => !seen.has(n.id));
+            return added.length ? [...added, ...prev] : prev;
+          });
+        } catch (e) {
+          console.error("fetchRecentNotifications:", e);
+        }
+      };
+
+      fetchRecentNotifications();
     } else {
       // Инициализируем демо-данными сразу, если нет пользователя
       setTasks(demoTasks);
@@ -150,23 +191,24 @@ export default function Home() {
           
           if (payload.eventType === "INSERT") {
             const task = payload.new as any;
-            
-            // Если задача для меня или если я в проекте
-            if (task.assignee_id === user.id || !task.assignee_id) {
-              // Добавляем уведомление о новой задаче
-              const newNotif = {
-                id: task.id,
-                title: "Новая задача",
-                message: `ИИ нашёл новую задачу «${task.title}».`,
-                time: "Только что"
-              };
-              
-              setNotifications(prev => [newNotif, ...prev]);
-              
-              // Обновляем данные если задача моя
-              if (task.assignee_id === user.id) {
-                loadData();
-              }
+
+            const isForMe = task.assignee_id === user.id || !task.assignee_id;
+            if (!isForMe) return;
+
+            const newNotif = {
+              id: task.id,
+              title: "Новая задача",
+              message: `ИИ нашёл новую задачу «${task.title}».`,
+              time: "Только что",
+            };
+
+            setNotifications((prev) => {
+              if (prev.some((n) => n.id === task.id)) return prev;
+              return [newNotif, ...prev];
+            });
+
+            if (task.assignee_id === user.id) {
+              loadData(true);
             }
           } else {
             // Для остальных событий (UPDATE, DELETE) просто обновляем список
