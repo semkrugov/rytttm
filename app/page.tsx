@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, Bell } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import NotificationCard from "@/components/NotificationCard";
 import FocusTasks from "@/components/FocusTasks";
@@ -236,7 +236,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
       <main
-        className="container mx-auto px-4 py-6 pb-24"
+        className="mx-auto max-w-[390px] px-4 py-4 pb-24"
         style={{
           paddingBottom: "calc(6rem + env(safe-area-inset-bottom))",
         }}
@@ -254,9 +254,9 @@ export default function Home() {
               }}
               className="space-y-6"
             >
-              <div className="h-6 bg-[var(--tg-theme-hint-color)]/20 rounded animate-pulse w-1/3"></div>
-              <div className="h-32 bg-[var(--tg-theme-secondary-bg-color)] rounded-xl animate-pulse"></div>
-              <div className="h-32 bg-[var(--tg-theme-secondary-bg-color)] rounded-xl animate-pulse"></div>
+              <div className="h-6 bg-[var(--tg-theme-hint-color)]/20 rounded animate-pulse w-1/3" />
+              <div className="h-32 bg-[var(--tg-theme-secondary-bg-color)] rounded-xl animate-pulse" />
+              <div className="h-32 bg-[var(--tg-theme-secondary-bg-color)] rounded-xl animate-pulse" />
             </motion.div>
           ) : (
             <motion.div
@@ -264,103 +264,217 @@ export default function Home() {
               initial={hasAnimated ? false : { opacity: 0, y: 20 }}
               animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={hasAnimated ? { duration: 0 } : {
-                duration: 0.4,
-                ease: [0.19, 1, 0.22, 1],
-              }}
+              transition={
+                hasAnimated
+                  ? { duration: 0 }
+                  : {
+                      duration: 0.4,
+                      ease: [0.19, 1, 0.22, 1],
+                    }
+              }
             >
-              {/* Блок уведомлений */}
-              {mockNotifications.length > 0 && (
-                <motion.div
+              <div className="flex flex-col gap-4">
+                {/* Хедер как в макете "header" */}
+                <div className="flex items-center justify-between h-14">
+                  <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80" />
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="text-xs uppercase tracking-[0.2em] text-[var(--tg-theme-hint-color)]">
+                      rytttm
+                    </div>
+                    <div className="text-sm font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#C3CBFF] to-[#F6B3FF]">
+                      beta
+                    </div>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80" />
+                </div>
+
+                {/* Блок уведомлений / Attention */}
+                {mockNotifications.length > 0 && (
+                  <motion.div
+                    initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+                    animate={
+                      hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
+                    }
+                    transition={
+                      hasAnimated
+                        ? { duration: 0 }
+                        : {
+                            duration: 0.3,
+                            ease: [0.19, 1, 0.22, 1],
+                          }
+                    }
+                    className="rounded-[14px] p-[14px] bg-gradient-to-br from-[#232427] via-[#18191c] to-[#101113]"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-[var(--tg-theme-button-color)]/10 flex items-center justify-center">
+                        <Bell className="w-5 h-5 text-[var(--tg-theme-button-color)]" />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-white">
+                            {mockNotifications[0].title}
+                          </p>
+                        </div>
+                        <p className="text-xs text-white/80 leading-snug">
+                          {mockNotifications[0].message}
+                        </p>
+                        {mockNotifications[0].time && (
+                          <p className="text-[11px] text-[var(--tg-theme-hint-color)]">
+                            {mockNotifications[0].time}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Блок "Мой фокус" с градиентной карточкой */}
+                <motion.section
                   initial={hasAnimated ? false : { opacity: 0, y: 20 }}
                   animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                  transition={hasAnimated ? { duration: 0 } : {
-                    duration: 0.3,
-                    ease: [0.19, 1, 0.22, 1],
-                  }}
+                  transition={
+                    hasAnimated
+                      ? { duration: 0 }
+                      : {
+                          duration: 0.35,
+                          ease: [0.19, 1, 0.22, 1],
+                        }
+                  }
+                  className="space-y-3"
                 >
-                  <NotificationCard
-                    title={mockNotifications[0].title}
-                    message={mockNotifications[0].message}
-                    time={mockNotifications[0].time}
-                  />
-                </motion.div>
-              )}
-
-              {/* Переключатель "Мои задачи" / "Все задачи проекта" */}
-              <div className="mb-6">
-                <div className="flex gap-1 p-1 bg-[var(--tg-theme-secondary-bg-color)] rounded-xl">
-                  <button
-                    onClick={() => setTaskViewMode("my")}
-                    className={cn(
-                      "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all",
-                      taskViewMode === "my"
-                        ? "bg-[var(--tg-theme-button-color)] text-white"
-                        : "text-[var(--tg-theme-hint-color)] hover:text-[var(--tg-theme-text-color)]"
-                    )}
-                  >
-                    Мои задачи
-                  </button>
-                  <button
-                    onClick={() => setTaskViewMode("all")}
-                    className={cn(
-                      "flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all",
-                      taskViewMode === "all"
-                        ? "bg-[var(--tg-theme-button-color)] text-white"
-                        : "text-[var(--tg-theme-hint-color)] hover:text-[var(--tg-theme-text-color)]"
-                    )}
-                  >
-                    Все задачи проекта
-                  </button>
-                </div>
-              </div>
-
-              {/* Блок "Мой Фокус" */}
-              {tasks.length > 0 ? (
-                <FocusTasks tasks={tasks} onTaskToggle={handleTaskToggle} />
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.3,
-                    ease: [0.19, 1, 0.22, 1],
-                  }}
-                  className="mb-6"
-                >
-                  <h2 className="text-lg font-semibold text-[var(--tg-theme-text-color)] mb-4">
-                    Мой Фокус
-                  </h2>
-                  <div className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-8 text-center">
-                    <p className="text-sm text-[var(--tg-theme-hint-color)]">
-                      {taskViewMode === "my"
-                        ? "Для тебя пока нет задач. Отдохни или проверь общий список."
-                        : "Нет задач в проекте."}
-                    </p>
+                  <div className="flex items-center justify-between px-1">
+                    <h2 className="text-base font-semibold text-white">
+                      Мой фокус
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/tasks")}
+                      className="text-xs font-medium text-[#6CC0FF]"
+                    >
+                      Все задачи
+                    </button>
                   </div>
+
+                  <div className="rounded-[14px] p-4 bg-gradient-to-br from-[#232427] via-[#18191c] to-[#101113] border border-white/3">
+                    {tasks.length > 0 ? (
+                      <>
+                        {/* Переключатель "Мои задачи" / "Все задачи проекта" */}
+                        <div className="mb-4">
+                          <div className="flex gap-1 p-1 bg-black/20 rounded-full">
+                            <button
+                              onClick={() => setTaskViewMode("my")}
+                              className={cn(
+                                "flex-1 py-1.5 px-3 rounded-full text-xs font-medium transition-all",
+                                taskViewMode === "my"
+                                  ? "bg-white text-black"
+                                  : "text-[var(--tg-theme-hint-color)]"
+                              )}
+                            >
+                              Мои задачи
+                            </button>
+                            <button
+                              onClick={() => setTaskViewMode("all")}
+                              className={cn(
+                                "flex-1 py-1.5 px-3 rounded-full text-xs font-medium transition-all",
+                                taskViewMode === "all"
+                                  ? "bg-white text-black"
+                                  : "text-[var(--tg-theme-hint-color)]"
+                              )}
+                            >
+                              Все задачи проекта
+                            </button>
+                          </div>
+                        </div>
+
+                        <FocusTasks
+                          tasks={tasks}
+                          onTaskToggle={handleTaskToggle}
+                          hideHeader
+                          className="mb-0"
+                        />
+                      </>
+                    ) : (
+                      <motion.div
+                        initial={hasAnimated ? false : { opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={
+                          hasAnimated
+                            ? { duration: 0 }
+                            : {
+                                duration: 0.25,
+                                ease: [0.19, 1, 0.22, 1],
+                              }
+                        }
+                        className="text-center py-6 px-4"
+                      >
+                        <p className="text-sm text-[var(--tg-theme-hint-color)]">
+                          {taskViewMode === "my"
+                            ? "Для тебя пока нет задач. Отдохни или проверь общий список."
+                            : "Нет задач в проекте."}
+                        </p>
+                      </motion.div>
+                    )}
+                  </div>
+                </motion.section>
+
+                {/* Блок "Проекты" с градиентной карточкой */}
+                <motion.section
+                  initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+                  animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+                  transition={
+                    hasAnimated
+                      ? { duration: 0 }
+                      : {
+                          duration: 0.35,
+                          ease: [0.19, 1, 0.22, 1],
+                        }
+                  }
+                  className="space-y-3"
+                >
+                  <div className="flex items-center justify-between px-1">
+                    <h2 className="text-base font-semibold text-white">
+                      Проекты
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/projects")}
+                      className="text-xs font-medium text-[#6CC0FF]"
+                    >
+                      Все проекты
+                    </button>
+                  </div>
+
+                  <div className="rounded-[14px] p-4 bg-gradient-to-br from-[#232427] via-[#18191c] to-[#101113] border border-white/3">
+                    <ProjectsList
+                      projects={projects}
+                      onProjectClick={handleProjectClick}
+                      hideHeader
+                      className="mb-0"
+                    />
+                  </div>
+                </motion.section>
+
+                {/* Плашка с информацией о пользователе */}
+                <motion.div
+                  initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+                  animate={
+                    hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
+                  }
+                  transition={
+                    hasAnimated
+                      ? { duration: 0 }
+                      : {
+                          duration: 0.3,
+                          ease: [0.19, 1, 0.22, 1],
+                        }
+                  }
+                  className="mt-2 px-4 py-2 rounded-lg bg-[var(--tg-theme-secondary-bg-color)]/80 text-center"
+                >
+                  <p className="text-xs text-[var(--tg-theme-hint-color)]">
+                    {user?.username ? `@${user.username}` : "Вход не выполнен"}
+                  </p>
                 </motion.div>
-              )}
-
-              {/* Блок "Проекты" */}
-              <ProjectsList
-                projects={projects}
-                onProjectClick={handleProjectClick}
-              />
-
-              {/* Плашка с информацией о пользователе */}
-              <motion.div
-                initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                transition={hasAnimated ? { duration: 0 } : {
-                  duration: 0.3,
-                  ease: [0.19, 1, 0.22, 1],
-                }}
-                className="mt-6 px-4 py-2 rounded-lg bg-[var(--tg-theme-secondary-bg-color)] text-center"
-              >
-                <p className="text-xs text-[var(--tg-theme-hint-color)]">
-                  {user?.username ? `@${user.username}` : "Вход не выполнен"}
-                </p>
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

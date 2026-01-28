@@ -16,11 +16,18 @@ export interface Project {
 interface ProjectsListProps {
   projects: Project[];
   onProjectClick?: (projectId: string) => void;
+  /**
+   * Скрывает заголовок "Проекты", если он уже отображается снаружи.
+   */
+  hideHeader?: boolean;
+  className?: string;
 }
 
 export default function ProjectsList({
   projects,
   onProjectClick,
+  hideHeader,
+  className,
 }: ProjectsListProps) {
   const hasAnimated = useHasAnimated();
   
@@ -29,10 +36,13 @@ export default function ProjectsList({
       variants={hasAnimated ? undefined : animationVariants.staggerItem}
       initial={hasAnimated ? false : "initial"}
       animate="animate"
+      className={className}
     >
-      <h2 className="text-lg font-semibold text-[var(--tg-theme-text-color)] mb-4">
-        Проекты
-      </h2>
+      {!hideHeader && (
+        <h2 className="text-lg font-semibold text-[var(--tg-theme-text-color)] mb-4">
+          Проекты
+        </h2>
+      )}
       {projects.length > 0 ? (
         <motion.div
           variants={hasAnimated ? undefined : animationVariants.staggerContainer}

@@ -18,9 +18,20 @@ export interface Task {
 interface FocusTasksProps {
   tasks: Task[];
   onTaskToggle: (taskId: string, completed: boolean) => void;
+  /**
+   * Позволяет использовать компонент внутри собственного контейнера и заголовка.
+   * По умолчанию заголовок "Мой фокус" отображается.
+   */
+  hideHeader?: boolean;
+  className?: string;
 }
 
-export default function FocusTasks({ tasks, onTaskToggle }: FocusTasksProps) {
+export default function FocusTasks({
+  tasks,
+  onTaskToggle,
+  hideHeader,
+  className,
+}: FocusTasksProps) {
   const hasAnimated = useHasAnimated();
   
   return (
@@ -28,11 +39,13 @@ export default function FocusTasks({ tasks, onTaskToggle }: FocusTasksProps) {
       variants={hasAnimated ? undefined : animationVariants.staggerItem}
       initial={hasAnimated ? false : "initial"}
       animate="animate"
-      className="mb-6"
+      className={cn("mb-6", className)}
     >
-      <h2 className="text-lg font-semibold text-[var(--tg-theme-text-color)] mb-4">
-        Мой Фокус
-      </h2>
+      {!hideHeader && (
+        <h2 className="text-lg font-semibold text-[var(--tg-theme-text-color)] mb-4">
+          Мой Фокус
+        </h2>
+      )}
       <motion.div
         variants={hasAnimated ? undefined : animationVariants.staggerContainer}
         initial={hasAnimated ? false : "initial"}
