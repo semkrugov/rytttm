@@ -18,6 +18,7 @@ export interface Task {
 interface FocusTasksProps {
   tasks: Task[];
   onTaskToggle: (taskId: string, completed: boolean) => void;
+  onTaskClick?: (taskId: string) => void;
   /**
    * Позволяет использовать компонент внутри собственного контейнера и заголовка.
    * По умолчанию заголовок "Мой фокус" отображается.
@@ -29,6 +30,7 @@ interface FocusTasksProps {
 export default function FocusTasks({
   tasks,
   onTaskToggle,
+  onTaskClick,
   hideHeader,
   className,
 }: FocusTasksProps) {
@@ -67,10 +69,12 @@ export default function FocusTasks({
                 stiffness: 300,
                 damping: 30,
               }}
+              onClick={() => onTaskClick?.(task.id)}
               className={cn(
                 "flex items-center gap-3 px-[18px] py-[18px]",
                 index !== tasks.length - 1 && "border-b border-[#28292D]",
-                task.completed && "opacity-60"
+                task.completed && "opacity-60",
+                "cursor-pointer"
               )}
             >
               <TaskCheckbox

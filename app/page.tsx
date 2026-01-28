@@ -171,11 +171,11 @@ export default function Home() {
           } else {
             // Для остальных событий (UPDATE, DELETE) просто обновляем список
             if (taskViewMode === "all") {
-              loadData();
+              loadData(true);
             } else {
               const task = (payload.new || payload.old) as any;
               if (task.assignee_id === user.id) {
-                loadData();
+                loadData(true);
               }
             }
           }
@@ -192,13 +192,14 @@ export default function Home() {
     };
   }, [user, taskViewMode]);
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
 
       let tasksQuery = supabase
         .from("tasks")
         .select("*, projects(title), assignee:profiles!assignee_id(username, avatar_url)")
+        .neq("status", "done")
         .order("created_at", { ascending: false })
         .limit(3);
 
@@ -308,7 +309,7 @@ export default function Home() {
 
       if (completed) {
         setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
-        loadData();
+        loadData(true);
       } else {
         setTasks((prevTasks) =>
           prevTasks.map((task) =>
@@ -324,8 +325,13 @@ export default function Home() {
       setActiveTasksCount(count || 0);
     } catch (error) {
       console.error("Error updating task:", error);
-      loadData();
+      loadData(true);
     }
+  };
+
+  const handleTaskClick = (taskId: string) => {
+    if (isDemoMode) return;
+    router.push(`/tasks/${taskId}`);
   };
 
   const handleProjectClick = (projectId: string) => {
@@ -471,6 +477,7 @@ export default function Home() {
                       <FocusTasks
                         tasks={visibleTasks}
                         onTaskToggle={handleTaskToggle}
+                        onTaskClick={handleTaskClick}
                         hideHeader
                         className="mb-0"
                       />
