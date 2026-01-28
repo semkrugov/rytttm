@@ -106,6 +106,7 @@ export default function Home() {
   const [projectsCount, setProjectsCount] = useState(0);
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>("my");
   const [isAttentionExpanded, setIsAttentionExpanded] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const channelRef = useRef<any>(null);
 
   const isDemoMode = !authLoading && !user;
@@ -116,10 +117,13 @@ export default function Home() {
 
     if (user) {
       loadData();
+      // Изначально можно загрузить историю уведомлений или оставить моки
+      setNotifications(mockNotifications);
     } else {
       // Инициализируем демо-данными сразу, если нет пользователя
       setTasks(demoTasks);
       setProjects(demoProjects);
+      setNotifications(demoNotifications);
       setLoading(false);
     }
   }, [authLoading, user]);
@@ -141,14 +145,39 @@ export default function Home() {
           schema: "public",
           table: "tasks",
         },
-        (payload) => {
-          if (taskViewMode === "my" && user.id) {
+        async (payload) => {
+          console.log("Realtime событие:", payload);
+          
+          if (payload.eventType === "INSERT") {
             const task = payload.new as any;
-            if (task.assignee_id === user.id) {
-              loadData();
+            
+            // Если задача для меня или если я в проекте
+            if (task.assignee_id === user.id || !task.assignee_id) {
+              // Добавляем уведомление о новой задаче
+              const newNotif = {
+                id: task.id,
+                title: "Новая задача",
+                message: `ИИ нашёл новую задачу «${task.title}».`,
+                time: "Только что"
+              };
+              
+              setNotifications(prev => [newNotif, ...prev]);
+              
+              // Обновляем данные если задача моя
+              if (task.assignee_id === user.id) {
+                loadData();
+              }
             }
           } else {
-            loadData();
+            // Для остальных событий (UPDATE, DELETE) просто обновляем список
+            if (taskViewMode === "all") {
+              loadData();
+            } else {
+              const task = (payload.new || payload.old) as any;
+              if (task.assignee_id === user.id) {
+                loadData();
+              }
+            }
           }
         }
       )
@@ -325,7 +354,6 @@ export default function Home() {
     );
   }
 
-  const notifications = isDemoMode ? demoNotifications : mockNotifications;
   const visibleTasks = tasks;
   const visibleProjects = projects;
 
