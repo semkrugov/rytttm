@@ -10,10 +10,11 @@ import {
   Calendar,
   Play,
   Square,
+  Link2,
 } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import { supabase } from "@/lib/supabase";
 import { haptics } from "@/lib/telegram";
-import { cn } from "@/lib/utils";
 import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 interface TaskDetail {
@@ -25,6 +26,7 @@ interface TaskDetail {
   deadline: string | null;
   assignee_id: string | null;
   creator_id: string | null;
+  project_id: string | null;
   confidence_score: number | null;
   time_tracking: number | null;
   is_tracking: boolean | null;
@@ -34,20 +36,8 @@ interface AssigneeProfile {
   id: string;
   username: string | null;
   avatar_url: string | null;
-  position: string | null;
+  position?: string | null;
 }
-
-const STATUS_MAP: Record<string, string> = {
-  todo: "TODO",
-  doing: "IN PROGRESS",
-  done: "DONE",
-};
-
-const STATUS_REVERSE_MAP: Record<string, string> = {
-  TODO: "todo",
-  "IN PROGRESS": "doing",
-  DONE: "done",
-};
 
 interface TaskDetailPageClientProps {
   taskId: string;
@@ -59,362 +49,330 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
 
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [assignee, setAssignee] = useState<AssigneeProfile | null>(null);
+  const [creator, setCreator] = useState<AssigneeProfile | null>(null);
+  const [projectTitle, setProjectTitle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Загрузка данных задачи
   useEffect(() => {
-    if (taskId) {
-      loadTask();
-    }
+    if (taskId) loadTask();
   }, [taskId]);
 
-  // Таймер для time tracking
   useEffect(() => {
     if (isTracking) {
-      intervalRef.current = setInterval(() => {
-        setTimeElapsed((prev) => prev + 1);
-      }, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      intervalRef.current = setInterval(() => setTimeElapsed((p) => p + 1), 1000);
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [isTracking]);
 
-  const loadTask = async () => {
+  const DEMO_TASKS: Record<string, TaskDetail> = {
+    "demo-1": {
+      id: "demo-1",
+      title: "Сверстать демо-экран",
+      description: null,
+      status: "doing",
+      priority: "medium",
+      deadline: null,
+      assignee_id: null,
+      creator_id: null,
+      project_id: null,
+      confidence_score: null,
+      time_tracking: 0,
+      is_tracking: false,
+    },
+    "demo-2": {
+      id: "demo-2",
+      title: "Подключить платежи",
+      description: null,
+      status: "todo",
+      priority: "medium",
+      deadline: null,
+      assignee_id: null,
+      creator_id: null,
+      project_id: null,
+      confidence_score: null,
+      time_tracking: 0,
+      is_tracking: false,
+    },
+    "demo-3": {
+      id: "demo-3",
+      title: "Покормить кота",
+      description: null,
+      status: "todo",
+      priority: "medium",
+      deadline: null,
+      assignee_id: null,
+      creator_id: null,
+      project_id: null,
+      confidence_score: null,
+      time_tracking: 0,
+      is_tracking: false,
+    },
+  };
+
+  async function loadTask() {
     try {
       setLoading(true);
 
-      // Загружаем задачу
+      if (taskId.startsWith("demo-") && DEMO_TASKS[taskId]) {
+        setTask(DEMO_TASKS[taskId]);
+        setLoading(false);
+        return;
+      }
+
       const { data: taskData, error: taskError } = await supabase
         .from("tasks")
-        .select("*")
+        .select("*, projects(title)")
         .eq("id", taskId)
         .single();
 
       if (taskError) throw taskError;
-      if (!taskData) {
-        throw new Error("Task not found");
-      }
+      if (!taskData) throw new Error("Task not found");
 
-      setTask(taskData as TaskDetail);
+      const projectTitleFromApi = (taskData as { projects?: { title: string } }).projects?.title ?? null;
+      setTask({ ...taskData, project_id: taskData.project_id ?? null } as TaskDetail);
+      setProjectTitle(projectTitleFromApi);
       setIsTracking(taskData.is_tracking || false);
       setTimeElapsed(taskData.time_tracking || 0);
 
-      // Загружаем профиль исполнителя, если есть
       if (taskData.assignee_id) {
-        const { data: assigneeData, error: assigneeError } = await supabase
+        const { data: assigneeData } = await supabase
           .from("profiles")
           .select("id, username, avatar_url")
           .eq("id", taskData.assignee_id)
           .single();
-
-        if (!assigneeError && assigneeData) {
-          setAssignee(assigneeData as AssigneeProfile);
-        }
+        if (assigneeData) setAssignee(assigneeData as AssigneeProfile);
       }
-    } catch (error) {
-      console.error("Error loading task:", error);
+      if (taskData.creator_id) {
+        const { data: creatorData } = await supabase
+          .from("profiles")
+          .select("id, username, avatar_url")
+          .eq("id", taskData.creator_id)
+          .single();
+        if (creatorData) setCreator(creatorData as AssigneeProfile);
+      }
+    } catch (e) {
+      console.error("Error loading task:", e);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (!task || updating) return;
-
-    try {
-      setUpdating(true);
-      haptics.light();
-
-      const statusValue = STATUS_REVERSE_MAP[newStatus] || newStatus.toLowerCase();
-
-      const { error } = await supabase
-        .from("tasks")
-        .update({ status: statusValue })
-        .eq("id", taskId);
-
-      if (error) throw error;
-
-      setTask({ ...task, status: statusValue });
-    } catch (error) {
-      console.error("Error updating status:", error);
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleTimeTrackingToggle = async () => {
+  async function handleTimeTrackingToggle() {
     if (!task) return;
-
+    haptics.medium();
     const newIsTracking = !isTracking;
 
     if (newIsTracking) {
-      // Запуск таймера (Play)
-      haptics.medium();
-      
       try {
-        // Сначала обновляем is_tracking на true в базе
-        const { error } = await supabase
-          .from("tasks")
-          .update({
-            is_tracking: true,
-          })
-          .eq("id", taskId);
-
-        if (error) throw error;
-
-        // Затем запускаем локальный счетчик
+        await supabase.from("tasks").update({ is_tracking: true }).eq("id", taskId);
         setIsTracking(true);
-      } catch (error) {
-        console.error("Error starting time tracking:", error);
+      } catch (e) {
+        console.error("Error starting time tracking:", e);
       }
     } else {
-      // Остановка таймера (Stop)
-      haptics.medium();
-      
+      setIsTracking(false);
       try {
-        // Сначала останавливаем локальный счетчик
-        setIsTracking(false);
-
-        // Затем сохраняем накопленные секунды в базу
-        const { error } = await supabase
+        await supabase
           .from("tasks")
-          .update({
-            is_tracking: false,
-            time_tracking: timeElapsed,
-          })
+          .update({ is_tracking: false, time_tracking: timeElapsed })
           .eq("id", taskId);
-
-        if (error) throw error;
-      } catch (error) {
-        console.error("Error stopping time tracking:", error);
-        // Восстанавливаем состояние при ошибке
+      } catch (e) {
+        console.error("Error stopping time tracking:", e);
         setIsTracking(true);
       }
     }
-  };
+  }
 
-  const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
+  function formatTimeShort(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
 
-  const formatDeadline = (deadline: string | null): string => {
-    if (!deadline) return "No deadline";
-    const date = new Date(deadline);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  function formatDeadlineRu(deadline: string | null): string {
+    if (!deadline) return "";
+    const d = new Date(deadline);
+    const time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    const date = d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+    return `${time} | ${date}`;
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--tg-theme-bg-color)] flex items-center justify-center">
-        <div className="text-[var(--tg-theme-text-color)]">Loading...</div>
+      <div className="min-h-screen bg-[rgba(35,36,39,1)] flex items-center justify-center">
+        <div className="text-white">Загрузка...</div>
       </div>
     );
   }
 
   if (!task) {
     return (
-      <div className="min-h-screen bg-[var(--tg-theme-bg-color)] flex items-center justify-center">
-        <div className="text-[var(--tg-theme-text-color)]">Task not found</div>
+      <div className="min-h-screen bg-[rgba(35,36,39,1)] flex items-center justify-center">
+        <div className="text-white">Задача не найдена</div>
       </div>
     );
   }
 
-  const currentStatus = STATUS_MAP[task.status] || task.status.toUpperCase();
-  const statuses = ["TODO", "IN PROGRESS", "DONE"];
+  const deadlineStr = formatDeadlineRu(task.deadline);
+  const timerStr = formatTimeShort(timeElapsed);
 
   return (
     <motion.div
-      initial={hasAnimated ? false : { opacity: 0, y: 50 }}
-      animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -50 }}
-      transition={hasAnimated ? { duration: 0 } : {
-        duration: 0.4,
-        ease: [0.19, 1, 0.22, 1],
-      }}
-      className="min-h-screen bg-[var(--tg-theme-bg-color)]"
+      initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={
+        hasAnimated ? { duration: 0 } : { duration: 0.35, ease: [0.19, 1, 0.22, 1] }
+      }
+      className="min-h-screen bg-[rgba(35,36,39,1)]"
     >
-      {/* Top Navigation Bar */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-6">
-        <button
-          onClick={() => router.back()}
-          className="p-2 rounded-lg hover:bg-[var(--tg-theme-secondary-bg-color)] transition-colors"
-        >
-          <ArrowLeft
-            className="w-6 h-6 text-[var(--tg-theme-text-color)]"
-            strokeWidth={2}
-          />
-        </button>
-
-        <div className="flex items-center gap-2">
-          <button className="p-2 rounded-lg bg-[var(--tg-theme-secondary-bg-color)]">
-            <Paperclip
-              className="w-5 h-5 text-[var(--tg-theme-text-color)]"
-              strokeWidth={2}
-            />
+      <AppHeader
+        leftSlot={
+          <button
+            onClick={() => router.back()}
+            className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center active:opacity-80 transition-opacity"
+          >
+            <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} />
           </button>
-          <button className="p-2 rounded-lg bg-[var(--tg-theme-secondary-bg-color)]">
-            <MessageCircle
-              className="w-5 h-5 text-[var(--tg-theme-text-color)]"
-              strokeWidth={2}
-            />
-          </button>
-        </div>
-      </div>
+        }
+        rightSlot={
+          <div className="flex items-center gap-2">
+            <button className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center">
+              <Paperclip className="w-5 h-5 text-white" strokeWidth={2} />
+            </button>
+            <button className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center">
+              <MessageCircle className="w-5 h-5 text-white" strokeWidth={2} />
+            </button>
+          </div>
+        }
+      />
 
-      <main className="container mx-auto px-4 pb-24">
-        {/* Task Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-[var(--tg-theme-text-color)] mb-3">
-            {task.title}
-          </h1>
-          <p className="text-base text-[var(--tg-theme-hint-color)]">
-            {task.description || "No description"}
+      <main
+        className="mx-auto max-w-[390px] px-[18px] pb-24"
+        style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
+      >
+        {/* Дата и время дедлайна */}
+        {deadlineStr && (
+          <div className="flex items-center gap-2 text-[#9097A7] text-sm mb-2">
+            <Calendar className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
+            <span>{deadlineStr}</span>
+          </div>
+        )}
+
+        {/* Заголовок */}
+        <h1 className="text-[22px] font-medium text-white leading-tight mb-2">
+          {task.title}
+        </h1>
+        {task.description && (
+          <p className="text-sm text-[#9097A7] leading-snug mb-6">
+            {task.description}
           </p>
-        </div>
+        )}
 
-        {/* Status Selector */}
-        <div className="mb-6">
-          <label className="text-xs uppercase text-[var(--tg-theme-hint-color)] mb-2 block">
-            STATUS
-          </label>
-          <div className="flex gap-1 p-1 bg-[var(--tg-theme-secondary-bg-color)] rounded-xl">
-            {statuses.map((status) => {
-              const isActive = status === currentStatus;
-              return (
-                <button
-                  key={status}
-                  onClick={() => handleStatusChange(status)}
-                  disabled={updating}
-                  className={cn(
-                    "flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all",
-                    isActive
-                      ? "bg-[var(--tg-theme-button-color)] text-white"
-                      : "text-[var(--tg-theme-hint-color)] hover:text-[var(--tg-theme-text-color)]"
-                  )}
-                >
-                  {status}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Grid of Two Cards */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          {/* Assignee Card */}
-          <div className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-4">
-            <label className="text-xs uppercase text-[var(--tg-theme-hint-color)] mb-2 block">
-              ASSIGNEE
-            </label>
-            {assignee ? (
-              <div className="flex items-center gap-2">
-                {assignee.avatar_url ? (
-                  <img
-                    src={assignee.avatar_url}
-                    alt={assignee.username || "User"}
-                    className="w-8 h-8 rounded-full"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-[var(--tg-theme-button-color)] flex items-center justify-center">
-                    <span className="text-white text-xs font-medium">
-                      {(assignee.username || "U")[0].toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <span className="text-sm text-[var(--tg-theme-text-color)]">
-                  {assignee.username ? `@${assignee.username}` : "Unassigned"}
-                </span>
-              </div>
-            ) : (
-              <span className="text-sm text-[var(--tg-theme-hint-color)]">
-                Unassigned
-              </span>
-            )}
-          </div>
-
-          {/* Deadline Card */}
-          <div className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-4">
-            <label className="text-xs uppercase text-[var(--tg-theme-hint-color)] mb-2 block">
-              DEADLINE
-            </label>
-            <div className="flex items-center gap-2">
-              <Calendar
-                className="w-5 h-5 text-[var(--tg-theme-hint-color)]"
-                strokeWidth={2}
-              />
-              <span className="text-sm text-[var(--tg-theme-text-color)]">
-                {formatDeadline(task.deadline)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Time Tracking Block */}
-        <div className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-[var(--tg-theme-text-color)]">
-              Time Tracking
-            </h2>
-            <span className="text-xs font-bold px-2.5 py-1 bg-[var(--tg-theme-button-color)] text-white rounded-full">
-              Estimated: 4h
-            </span>
-          </div>
-
-          {/* Timer Display */}
-          <div className="text-center mb-6">
-            <div className="text-5xl font-bold text-[var(--tg-theme-text-color)] mb-4">
-              {formatTime(timeElapsed)}
-            </div>
-          </div>
-
-          {/* Control Buttons */}
-          <div className="flex items-center justify-end gap-3">
+        {/* Таймер / воспроизведение */}
+        <div className="flex items-center gap-4 mb-8">
+          <motion.button
+            type="button"
+            onClick={handleTimeTrackingToggle}
+            className="w-14 h-14 rounded-full border-2 border-[#22c55e] flex items-center justify-center bg-transparent flex-shrink-0"
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
             {isTracking ? (
-              <button
-                onClick={handleTimeTrackingToggle}
-                className="w-14 h-14 rounded-full bg-[var(--tg-theme-secondary-bg-color)] border-2 border-[var(--tg-theme-hint-color)] flex items-center justify-center hover:bg-[var(--tg-theme-bg-color)] transition-colors"
-              >
-                <Square
-                  className="w-6 h-6 text-[var(--tg-theme-text-color)]"
-                  strokeWidth={2}
-                  fill="currentColor"
-                />
-              </button>
+              <Square
+                className="w-6 h-6 text-[#22c55e]"
+                strokeWidth={2}
+                fill="currentColor"
+              />
             ) : (
-              <button
-                onClick={handleTimeTrackingToggle}
-                className="w-14 h-14 rounded-full bg-[var(--tg-theme-button-color)] flex items-center justify-center hover:opacity-90 transition-opacity shadow-lg"
-              >
-                <Play
-                  className="w-6 h-6 text-white ml-0.5"
-                  strokeWidth={2}
-                  fill="currentColor"
-                />
-              </button>
+              <Play
+                className="w-6 h-6 text-[#22c55e] ml-0.5"
+                strokeWidth={2}
+                fill="currentColor"
+              />
             )}
+          </motion.button>
+          <span className="text-2xl font-bold text-[#22c55e] tabular-nums">
+            {timerStr}
+          </span>
+        </div>
+
+        {/* Выполняет */}
+        <div className="mb-6">
+          <p className="text-sm text-[#9097A7] mb-2">Выполняет</p>
+          <div className="rounded-[14px] bg-[#1E1F22] overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3">
+              {assignee?.avatar_url ? (
+                <img
+                  src={assignee.avatar_url}
+                  alt=""
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-sm font-medium">
+                  {(assignee?.username || "?")[0].toUpperCase()}
+                </div>
+              )}
+              <span className="text-white font-medium truncate">
+                {assignee?.username ?? "Не назначен"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Ответственный */}
+        <div className="mb-6">
+          <p className="text-sm text-[#9097A7] mb-2">Ответственный</p>
+          <div className="rounded-[14px] bg-[#1E1F22] overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3">
+              {creator?.avatar_url ? (
+                <img
+                  src={creator.avatar_url}
+                  alt=""
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#F97316] flex items-center justify-center text-white text-sm font-medium">
+                  {(creator?.username || "?")[0].toUpperCase()}
+                </div>
+              )}
+              <span className="text-white font-medium truncate">
+                {creator?.username ?? "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Дополнительно */}
+        <div>
+          <p className="text-sm text-[#9097A7] mb-2">Дополнительно</p>
+          <div className="space-y-2">
+            {projectTitle && (
+              <div className="rounded-[14px] bg-[#1E1F22] overflow-hidden">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-sm font-medium">
+                    T
+                  </div>
+                  <span className="text-white font-medium truncate">
+                    {projectTitle}
+                  </span>
+                </div>
+              </div>
+            )}
+            {/* Плейсхолдер файла — можно заменить на реальные вложения */}
+            <div className="rounded-[14px] bg-[#1E1F22] overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <Link2 className="w-5 h-5 text-[#9097A7] flex-shrink-0" strokeWidth={2} />
+                <span className="text-white font-medium truncate">File_name.pdf</span>
+              </div>
+            </div>
           </div>
         </div>
       </main>

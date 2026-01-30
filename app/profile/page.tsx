@@ -11,6 +11,7 @@ import {
   X,
   Check,
 } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 import { supabase } from "@/lib/supabase";
@@ -213,6 +214,7 @@ export default function ProfilePage() {
             ease: [0.19, 1, 0.22, 1],
           }}
         >
+          <AppHeader />
           {/* Avatar & Info */}
           <div className="flex flex-col items-center mb-8">
             <div className="relative mb-4">

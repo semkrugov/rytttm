@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import AIInboxCard from "@/components/AIInboxCard";
 import Toast from "@/components/Toast";
@@ -86,6 +87,7 @@ export default function AIInboxPage() {
             ease: [0.19, 1, 0.22, 1],
           }}
         >
+          <AppHeader />
           {/* Header */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-[var(--tg-theme-text-color)] mb-4">

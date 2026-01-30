@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import AttentionCards from "@/components/AttentionCards";
 import FocusTasks from "@/components/FocusTasks";
@@ -372,12 +373,10 @@ export default function Home() {
   };
 
   const handleTaskClick = (taskId: string) => {
-    if (isDemoMode) return;
     router.push(`/tasks/${taskId}`);
   };
 
   const handleProjectClick = (projectId: string) => {
-    if (isDemoMode) return;
     router.push(`/projects/${projectId}`);
   };
 
@@ -462,17 +461,7 @@ export default function Home() {
                     Работает демо-режим. Зайдите через Telegram, чтобы увидеть свои реальные задачи.
                   </motion.div>
                 )}
-                <div className="h-[60px] flex items-center gap-2 px-[18px]">
-                  <div className="w-10 h-10 shrink-0 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80 ml-[10px]" />
-                  <div className="flex-1 flex items-center justify-center min-w-0">
-                    <img
-                      src="/assets/logo.svg"
-                      alt="rytttm"
-                      className="h-[27px] w-auto object-contain"
-                    />
-                  </div>
-                  <div className="w-10 h-10 shrink-0 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80 mr-[10px]" />
-                </div>
+                <AppHeader />
 
                 {activeNotifications.length > 0 && (
                   <AttentionCards

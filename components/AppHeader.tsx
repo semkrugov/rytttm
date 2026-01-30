@@ -1,0 +1,34 @@
+"use client";
+
+import { ReactNode } from "react";
+
+interface AppHeaderProps {
+  /** Слот слева (например кнопка «Назад») */
+  leftSlot?: ReactNode;
+  /** Слот справа */
+  rightSlot?: ReactNode;
+}
+
+export default function AppHeader({ leftSlot, rightSlot }: AppHeaderProps) {
+  return (
+    <div className="h-[60px] flex items-center gap-2 px-[18px]">
+      <div className="w-10 h-10 shrink-0 flex items-center justify-center ml-[10px]">
+        {leftSlot ?? (
+          <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80" />
+        )}
+      </div>
+      <div className="flex-1 flex items-center justify-center min-w-0">
+        <img
+          src="/assets/logo.svg"
+          alt="rytttm"
+          className="h-[27px] w-auto object-contain"
+        />
+      </div>
+      <div className="w-10 h-10 shrink-0 flex items-center justify-center mr-[10px]">
+        {rightSlot ?? (
+          <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80" />
+        )}
+      </div>
+    </div>
+  );
+}

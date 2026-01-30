@@ -11,10 +11,19 @@ export interface Task {
   timeTracking?: string; // e.g., "01:45"
   isTracking?: boolean; // true for play, false for pause
   completed: boolean;
+  /** Автор (создатель) задачи */
+  author?: {
+    username: string | null;
+    avatar_url: string | null;
+  } | null;
+  /** Исполнитель (назначенный) */
   assignee?: {
     username: string | null;
     avatar_url: string | null;
   } | null;
+  /** id автора и исполнителя для дедупа аватарок */
+  creatorId?: string | null;
+  assigneeId?: string | null;
 }
 
 export interface Project {

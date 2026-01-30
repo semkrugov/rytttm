@@ -42,7 +42,7 @@ export default function BottomNavigation() {
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none"
       style={{
-        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
         backdropFilter: "blur(20px) saturate(180%)",
         WebkitBackdropFilter: "blur(20px) saturate(180%)",
       }}
@@ -54,12 +54,7 @@ export default function BottomNavigation() {
             backgroundImage:
               "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
           }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.3,
-            ease: [0.19, 1, 0.22, 1],
-          }}
+          initial={false}
         >
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -72,12 +67,8 @@ export default function BottomNavigation() {
                 className={cn(
                   "relative flex-1 h-full flex items-center justify-center"
                 )}
-                whileTap={{ scale: 0.95 }}
-                transition={{
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 30,
-                }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 {isActive && (
                   <motion.div

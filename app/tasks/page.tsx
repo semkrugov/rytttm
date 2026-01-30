@@ -3,78 +3,103 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Loader2 } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
-import StatusTabs from "@/components/StatusTabs";
-import TaskCard from "@/components/TaskCard";
-import TaskCardSkeleton from "@/components/TaskCardSkeleton";
+import StatusTabs, { type TasksPageFilter } from "@/components/StatusTabs";
+import TasksListCard from "@/components/TasksListCard";
 import { Task, TaskStatus } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { haptics } from "@/lib/telegram";
 import { useHasAnimated } from "@/hooks/useHasAnimated";
+import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+
+const demoTasks: Task[] = [
+  {
+    id: "demo-1",
+    title: "Сверстать демо-экран",
+    project: "demo-work",
+    projectTitle: "Рабочий чат",
+    deadline: undefined,
+    status: "doing",
+    completed: false,
+    assignee: null,
+  },
+  {
+    id: "demo-2",
+    title: "Подключить платежи",
+    project: "demo-work",
+    projectTitle: "Рабочий чат",
+    deadline: undefined,
+    status: "todo",
+    completed: false,
+    assignee: null,
+  },
+  {
+    id: "demo-3",
+    title: "Покормить кота",
+    project: "demo-life",
+    projectTitle: "Личные дела",
+    deadline: undefined,
+    status: "todo",
+    completed: false,
+    assignee: null,
+  },
+];
 
 export default function TasksPage() {
+  const { user, loading: authLoading } = useTelegramAuth();
   const hasAnimated = useHasAnimated();
-  const [activeStatus, setActiveStatus] = useState<TaskStatus>("todo");
+  const [activeFilter, setActiveFilter] = useState<TasksPageFilter>("all");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
 
-  // Загрузка задач из Supabase
-  useEffect(() => {
-    loadTasks();
-  }, []);
+  const isDemoMode = !authLoading && !user;
 
-  // Realtime подписка на изменения задач
   useEffect(() => {
-    // Отключаем предыдущую подписку, если есть
+    if (authLoading) return;
+    if (user) {
+      loadTasks();
+    } else {
+      setTasks(demoTasks);
+      setLoading(false);
+    }
+  }, [authLoading, user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
-
-    // Создаем новую подписку на все задачи
     const channel = supabase
       .channel("public:tasks")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "tasks",
-        },
-        (payload) => {
-          console.log("Realtime событие:", payload);
-          loadTasks();
-        }
+        { event: "*", schema: "public", table: "tasks" },
+        () => loadTasks()
       )
       .subscribe();
-
     channelRef.current = channel;
-
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, []);
+  }, [user?.id]);
 
   const loadTasks = async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
-      
-      // Загружаем все задачи с информацией о проектах и исполнителе
       const { data, error } = await supabase
         .from("tasks")
-        .select("*, projects(title), assignee:profiles!assignee_id(username, avatar_url)")
+        .select("*, projects(title), assignee:profiles!assignee_id(username, avatar_url), creator:profiles!creator_id(username, avatar_url)")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      console.log("Загруженные задачи:", data);
-
-      // Преобразуем данные из Supabase в формат Task
-      // В базе нет поля status, поэтому используем дефолтное значение "todo"
       const formattedTasks: Task[] = (data || []).map((task: any) => ({
         id: task.id,
         title: task.title,
@@ -92,13 +117,16 @@ export default function TasksPage() {
               month: "2-digit",
             })}`
           : undefined,
-        status: (task.status as TaskStatus) || "todo", // Дефолтное значение, если status отсутствует
+        status: (task.status as TaskStatus) || "todo",
         timeTracking: task.time_tracking
           ? formatTimeTracking(task.time_tracking)
           : undefined,
         isTracking: task.is_tracking || false,
         completed: task.status === "done",
+        author: task.creator || null,
         assignee: task.assignee || null,
+        creatorId: task.creator_id ?? null,
+        assigneeId: task.assignee_id ?? null,
       }));
 
       setTasks(formattedTasks);
@@ -117,28 +145,51 @@ export default function TasksPage() {
       .padStart(2, "0")}`;
   };
 
-  // Фильтруем задачи по статусу
-  // Если в базе нет поля status, все задачи считаются "todo"
   const filteredTasks = tasks.filter((task) => {
-    // Если статус не определен, показываем как "todo"
     const taskStatus = task.status || "todo";
-    return taskStatus === activeStatus;
+    if (activeFilter === "all") return taskStatus !== "done";
+    return taskStatus === activeFilter;
   });
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
-    try {
-      setUpdating(taskId);
-      
-      // В базе нет поля status, поэтому обновляем только локальное состояние
-      // TODO: Добавить поле status в таблицу tasks или использовать другое поле
-      console.warn("Попытка обновить status, но поле отсутствует в базе данных");
+    setUpdating(taskId);
+    const completed = newStatus === "done";
 
-      // Обновляем локальное состояние
-      setTasks((prevTasks) =>
-        prevTasks.map((task) =>
-          task.id === taskId ? { ...task, status: newStatus, completed: newStatus === "done" } : task
+    if (taskId.startsWith("demo-")) {
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId ? { ...t, status: newStatus, completed } : t
         )
       );
+      if (completed) {
+        setTimeout(() => {
+          setTasks((prev) => prev.filter((t) => t.id !== taskId));
+        }, 500);
+      }
+      setUpdating(null);
+      return;
+    }
+
+    try {
+      if (completed) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: newStatus })
+        .eq("id", taskId);
+
+      if (error) throw error;
+
+      if (completed) {
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      } else {
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === taskId ? { ...t, status: newStatus, completed } : t
+          )
+        );
+      }
     } catch (error) {
       console.error("Error updating task status:", error);
     } finally {
@@ -146,167 +197,137 @@ export default function TasksPage() {
     }
   };
 
-  const handleTimeTrackingToggle = async (taskId: string) => {
-    if (typeof window !== "undefined") {
-      haptics.light();
-    }
-
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-
-    const newIsTracking = !task.isTracking;
-
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .update({ is_tracking: newIsTracking })
-        .eq("id", taskId);
-
-      if (error) throw error;
-
-      setTasks((prevTasks) =>
-        prevTasks.map((task) =>
-          task.id === taskId ? { ...task, isTracking: newIsTracking } : task
-        )
-      );
-    } catch (error) {
-      console.error("Error updating time tracking:", error);
-    }
-  };
-
   const handleAddTask = () => {
-    if (typeof window !== "undefined") {
-      haptics.medium();
-    }
+    haptics.medium();
     // TODO: Open add task modal
-    console.log("Add task");
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[rgba(35,36,39,1)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#6CC2FF] animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
+    <div className="min-h-screen bg-[rgba(35,36,39,1)]">
       <main
-        className="container mx-auto px-4 py-6 pb-24"
+        className="mx-auto max-w-[390px] py-4 pb-24"
         style={{
           paddingBottom: "calc(6rem + env(safe-area-inset-bottom))",
         }}
       >
-          <motion.div
-            initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-            animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-            transition={hasAnimated ? { duration: 0 } : {
-              duration: 0.4,
-              ease: [0.19, 1, 0.22, 1],
-            }}
-          >
-          <h1 className="text-2xl font-bold text-[var(--tg-theme-text-color)] mb-6">
-            Задачи
-          </h1>
+        <motion.div
+          initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={
+            hasAnimated
+              ? { duration: 0 }
+              : { duration: 0.4, ease: [0.19, 1, 0.22, 1] }
+          }
+          className="flex flex-col gap-[18px]"
+        >
+          <AppHeader />
+          <section className="space-y-3 px-[18px]">
+            <h1 className="text-[22px] font-medium text-white">
+              Задачи
+            </h1>
 
-          {/* Табы статусов */}
-          <StatusTabs
-            activeStatus={activeStatus}
-            onStatusChange={setActiveStatus}
-          />
+            <div className="rounded-[14px] overflow-hidden">
+              <div className="p-0">
+                <StatusTabs
+                  activeStatus={activeFilter}
+                  onStatusChange={(s) => setActiveFilter(s)}
+                  embedded
+                  variant="tasks"
+                />
+              </div>
 
-          {/* Список задач */}
-          <AnimatePresence mode="wait">
-            {loading ? (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: 0.3,
-                  ease: [0.19, 1, 0.22, 1],
-                }}
-              >
-                <motion.div
-                  variants={animationVariants.staggerContainer}
-                  initial="initial"
-                  animate="animate"
-                >
-                  {[1, 2, 3].map((i) => (
-                    <TaskCardSkeleton key={i} />
-                  ))}
-                </motion.div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="content"
-                initial={hasAnimated ? false : { opacity: 0 }}
-                animate={hasAnimated ? { opacity: 1 } : { opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={hasAnimated ? { duration: 0 } : {
-                  duration: 0.3,
-                  ease: [0.19, 1, 0.22, 1],
-                }}
-              >
-                <AnimatePresence mode="popLayout">
+              <AnimatePresence mode="wait">
+                {loading && !isDemoMode ? (
                   <motion.div
-                    variants={hasAnimated ? undefined : animationVariants.staggerContainer}
-                    initial={hasAnimated ? false : "initial"}
-                    animate={hasAnimated ? false : "animate"}
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col"
+                  >
+                    {[1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex items-center gap-3 px-[18px] py-[18px] animate-pulse",
+                          i < 4 && "border-b border-[#28292D]"
+                        )}
+                      >
+                        <div className="w-[25px] h-[25px] rounded-lg bg-[#28292D]" />
+                        <div className="flex-1 min-w-0">
+                          <div className="h-4 bg-[#28292D] rounded w-3/4 mb-2" />
+                          <div className="h-3 bg-[#28292D]/70 rounded w-20" />
+                        </div>
+                      </div>
+                    ))}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="content"
+                    initial={hasAnimated ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={
+                      hasAnimated
+                        ? { duration: 0 }
+                        : { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
+                    }
                   >
                     {filteredTasks.length > 0 ? (
-                      filteredTasks.map((task) => (
-                        <AnimatePresence key={task.id} mode="wait">
-                          {updating === task.id ? (
-                            <motion.div
-                              key={`loading-${task.id}`}
-                              initial={hasAnimated ? false : { opacity: 0, scale: 0.95 }}
-                              animate={hasAnimated ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.95 }}
-                              transition={hasAnimated ? { duration: 0 } : {
-                                duration: 0.2,
-                                ease: [0.19, 1, 0.22, 1],
-                              }}
-                              className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-4 mb-3 flex items-center justify-center"
-                            >
-                              <Loader2 className="w-5 h-5 text-[var(--tg-theme-button-color)] animate-spin" />
-                            </motion.div>
-                          ) : (
-                            <TaskCard
-                              key={`task-${task.id}`}
+                      <motion.div
+                        variants={
+                          hasAnimated
+                            ? undefined
+                            : animationVariants.staggerContainer
+                        }
+                        initial={hasAnimated ? false : "initial"}
+                        animate={hasAnimated ? false : "animate"}
+                        className="flex flex-col justify-center items-center px-0 py-4"
+                      >
+                        <AnimatePresence mode="popLayout" initial={false}>
+                          {filteredTasks.map((task, index) => (
+                            <TasksListCard
+                              key={task.id}
                               task={task}
+                              isLast={index === filteredTasks.length - 1}
                               onStatusChange={handleStatusChange}
-                              onTimeTrackingToggle={handleTimeTrackingToggle}
                             />
-                          )}
+                          ))}
                         </AnimatePresence>
-                      ))
+                      </motion.div>
                     ) : (
                       <motion.div
-                        key="empty"
-                        initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                        animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={hasAnimated ? { duration: 0 } : {
-                          duration: 0.3,
-                          ease: [0.19, 1, 0.22, 1],
-                        }}
-                        className="text-center py-12"
+                        initial={hasAnimated ? false : { opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center py-10 px-4"
                       >
-                        <p className="text-[var(--tg-theme-hint-color)]">
+                        <p className="text-sm text-[#9097A7]">
                           Нет задач в этом статусе
                         </p>
                       </motion.div>
                     )}
                   </motion.div>
-                </AnimatePresence>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                )}
+              </AnimatePresence>
+            </div>
+          </section>
 
-          {/* Кнопка добавления задачи */}
           <motion.button
             onClick={handleAddTask}
-            className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-[var(--tg-theme-button-color)] flex items-center justify-center shadow-lg z-40"
+            className="fixed bottom-24 right-[18px] w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-40"
             style={{
+              background: "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
               bottom: "calc(6rem + env(safe-area-inset-bottom))",
             }}
             whileTap={{ scale: 0.9 }}
-            whileHover={{ scale: 1.05 }}
             transition={{
               type: "spring",
               stiffness: 300,
@@ -318,7 +339,6 @@ export default function TasksPage() {
         </motion.div>
       </main>
 
-      {/* Нижняя навигация */}
       <BottomNavigation />
     </div>
   );
