@@ -32,6 +32,7 @@ const statusLabels: Record<TaskStatus, string> = {
 
 const tasksFilterLabels: Record<TasksPageFilter, string> = {
   all: "Все",
+  todo: "Задачи",
   doing: "В работе",
   done: "Готово",
 };
