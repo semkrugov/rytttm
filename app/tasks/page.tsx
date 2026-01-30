@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Loader2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
@@ -10,6 +11,7 @@ import TasksListCard from "@/components/TasksListCard";
 import { Task, TaskStatus } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
+import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/telegram";
 import { useHasAnimated } from "@/hooks/useHasAnimated";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
@@ -54,7 +56,7 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const isDemoMode = !authLoading && !user;
 
@@ -100,7 +102,21 @@ export default function TasksPage() {
 
       if (error) throw error;
 
-      const formattedTasks: Task[] = (data || []).map((task: any) => ({
+      type TaskRow = {
+        id: string;
+        title: string;
+        project_id: string;
+        projects?: { title?: string } | null;
+        deadline: string | null;
+        status: string;
+        time_tracking: number | null;
+        is_tracking: boolean | null;
+        creator_id: string | null;
+        assignee_id: string | null;
+        creator?: { username: string | null; avatar_url: string | null } | null;
+        assignee?: { username: string | null; avatar_url: string | null } | null;
+      };
+      const formattedTasks: Task[] = (data || []).map((task: TaskRow) => ({
         id: task.id,
         title: task.title,
         project: task.project_id,
@@ -172,7 +188,7 @@ export default function TasksPage() {
 
     try {
       if (completed) {
-        await new Promise((r) => setTimeout(r, 500));
+        await new Promise<void>((resolve) => setTimeout(resolve, 500));
       }
       const { error } = await supabase
         .from("tasks")
@@ -238,7 +254,7 @@ export default function TasksPage() {
               <div className="p-0">
                 <StatusTabs
                   activeStatus={activeFilter}
-                  onStatusChange={(s) => setActiveFilter(s)}
+                  onStatusChange={(s: TasksPageFilter) => setActiveFilter(s)}
                   embedded
                   variant="tasks"
                 />
