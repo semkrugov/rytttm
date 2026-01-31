@@ -27,6 +27,7 @@ interface Profile {
 interface UseTelegramAuthReturn {
   user: Profile | null;
   loading: boolean;
+  isDemoMode: boolean;
 }
 
 export function useTelegramAuth(): UseTelegramAuthReturn {
@@ -123,5 +124,5 @@ export function useTelegramAuth(): UseTelegramAuthReturn {
     initAuth();
   }, []);
 
-  return { user, loading };
+  return { user, loading, isDemoMode: !user && !loading };
 }

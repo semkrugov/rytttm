@@ -14,7 +14,6 @@ import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/telegram";
-import { useHasAnimated } from "@/hooks/useHasAnimated";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 
 const demoTasks: Task[] = [
@@ -52,15 +51,12 @@ const demoTasks: Task[] = [
 
 export default function TasksPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useTelegramAuth();
-  const hasAnimated = useHasAnimated();
+  const { user, loading: authLoading, isDemoMode } = useTelegramAuth();
   const [activeFilter, setActiveFilter] = useState<TasksPageFilter>("all");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
-
-  const isDemoMode = !authLoading && !user;
 
   useEffect(() => {
     if (authLoading) return;
@@ -231,10 +227,10 @@ export default function TasksPage() {
         }}
       >
         <motion.div
-          initial={hasAnimated ? false : { opacity: 0 }}
+          initial={false}
           animate={{ opacity: 1 }}
           transition={
-            hasAnimated ? { duration: 0 } : { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
+            { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
           }
           className="flex flex-col gap-[18px]"
         >
@@ -282,14 +278,10 @@ export default function TasksPage() {
                 ) : (
                   <motion.div
                     key="content"
-                    initial={hasAnimated ? false : { opacity: 0 }}
+                    initial={false}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={
-                      hasAnimated
-                        ? { duration: 0 }
-                        : { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
-                    }
+                    transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
                   >
                     {filteredTasks.length > 0 ? (
                       <div className="flex flex-col justify-center items-center px-0 py-4">

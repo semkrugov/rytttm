@@ -116,7 +116,8 @@ export default function AddTaskFromListClient() {
 
         const projectsList: Project[] = (data || [])
           .map((pm) => {
-            const proj = pm.projects as { id: string; title: string } | null;
+            const raw = pm.projects;
+            const proj = Array.isArray(raw) ? raw[0] : (raw as { id: string; title: string } | null);
             return proj ? { id: proj.id, title: proj.title } : null;
           })
           .filter((p): p is Project => p !== null);
