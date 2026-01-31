@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import AttentionCards from "@/components/AttentionCards";
@@ -380,27 +379,6 @@ export default function Home() {
     router.push(`/projects/${projectId}`);
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[var(--tg-theme-bg-color)] flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{
-            duration: 0.3,
-            ease: [0.19, 1, 0.22, 1],
-          }}
-          className="flex flex-col items-center gap-3"
-        >
-          <Loader2 className="w-8 h-8 text-[var(--tg-theme-button-color)] animate-spin" />
-          <p className="text-sm text-[var(--tg-theme-hint-color)]">
-            Загрузка...
-          </p>
-        </motion.div>
-      </div>
-    );
-  }
-
   const activeNotifications = isDemoMode 
     ? (notifications.length > 0 ? notifications : demoNotifications)
     : notifications;
@@ -416,50 +394,36 @@ export default function Home() {
         }}
       >
         <AnimatePresence mode="wait">
-          {loading && !isDemoMode ? (
+          {(authLoading || (loading && !isDemoMode)) ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: [0.19, 1, 0.22, 1],
-              }}
+              transition={{ duration: 0.2 }}
               className="space-y-6"
             >
-              <div className="h-6 bg-[var(--tg-theme-hint-color)]/20 rounded animate-pulse w-1/3" />
-              <div className="h-32 bg-[var(--tg-theme-secondary-bg-color)] rounded-xl animate-pulse" />
-              <div className="h-32 bg-[var(--tg-theme-secondary-bg-color)] rounded-xl animate-pulse" />
+              <div className="h-6 bg-[#28292D] rounded animate-pulse w-1/3 mx-[18px]" />
+              <div className="h-32 bg-[#1E1F22] rounded-[14px] animate-pulse mx-[18px]" />
+              <div className="h-32 bg-[#1E1F22] rounded-[14px] animate-pulse mx-[18px]" />
             </motion.div>
           ) : (
             <motion.div
               key="content"
-              initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-              animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              initial={hasAnimated ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={
-                hasAnimated
-                  ? { duration: 0 }
-                  : {
-                      duration: 0.4,
-                      ease: [0.19, 1, 0.22, 1],
-                    }
+                hasAnimated ? { duration: 0 } : { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
               }
             >
               <div className="flex flex-col gap-[18px]">
                 {isDemoMode && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.25,
-                      ease: [0.19, 1, 0.22, 1],
-                    }}
-                    className="mx-[18px] mb-1 rounded-[10px] px-3 py-2 bg-[var(--tg-theme-secondary-bg-color)]/80 text-[11px] text-[var(--tg-theme-hint-color)]"
+                  <div
+                    className="mx-[18px] mb-1 rounded-[10px] px-3 py-2 bg-[#1E1F22]/80 text-[11px] text-[#9097A7]"
                   >
                     Работает демо-режим. Зайдите через Telegram, чтобы увидеть свои реальные задачи.
-                  </motion.div>
+                  </div>
                 )}
                 <AppHeader />
 
@@ -479,19 +443,7 @@ export default function Home() {
                   />
                 )}
 
-                <motion.section
-                  initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                  animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                  transition={
-                    hasAnimated
-                      ? { duration: 0 }
-                      : {
-                          duration: 0.35,
-                          ease: [0.19, 1, 0.22, 1],
-                        }
-                  }
-                  className="space-y-3 px-[18px]"
-                >
+                <section className="space-y-3 px-[18px]">
                   <div className="flex items-center justify-between">
                     <h2 className="text-[22px] font-medium text-white">
                       Мой фокус
@@ -515,40 +467,16 @@ export default function Home() {
                         className="mb-0"
                       />
                     ) : (
-                      <motion.div
-                        initial={hasAnimated ? false : { opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={
-                          hasAnimated
-                            ? { duration: 0 }
-                            : {
-                                duration: 0.25,
-                                ease: [0.19, 1, 0.22, 1],
-                              }
-                        }
-                        className="text-center py-6 px-4"
-                      >
-                        <p className="text-sm text-[var(--tg-theme-hint-color)]">
+                      <div className="text-center py-6 px-4">
+                        <p className="text-sm text-[#9097A7]">
                           Для тебя пока нет задач. Отдохни или проверь общий список.
                         </p>
-                      </motion.div>
+                      </div>
                     )}
                   </div>
-                </motion.section>
+                </section>
 
-                <motion.section
-                  initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                  animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                  transition={
-                    hasAnimated
-                      ? { duration: 0 }
-                      : {
-                          duration: 0.35,
-                          ease: [0.19, 1, 0.22, 1],
-                        }
-                  }
-                  className="space-y-3 px-[18px]"
-                >
+                <section className="space-y-3 px-[18px]">
                   <div className="flex items-center justify-between">
                     <h2 className="text-[22px] font-medium text-white">
                       Проекты
@@ -570,27 +498,13 @@ export default function Home() {
                       className="mb-0"
                     />
                   </div>
-                </motion.section>
+                </section>
 
-                <motion.div
-                  initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-                  animate={
-                    hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }
-                  }
-                  transition={
-                    hasAnimated
-                      ? { duration: 0 }
-                      : {
-                          duration: 0.3,
-                          ease: [0.19, 1, 0.22, 1],
-                        }
-                  }
-                  className="mt-2 mx-[18px] py-2 rounded-lg bg-[var(--tg-theme-secondary-bg-color)]/80 text-center"
-                >
-                  <p className="text-xs text-[var(--tg-theme-hint-color)]">
+                <div className="mt-2 mx-[18px] py-2 rounded-lg bg-[#1E1F22]/80 text-center">
+                  <p className="text-xs text-[#9097A7]">
                     {user?.username ? `@${user.username}` : "Вход не выполнен"}
                   </p>
-                </motion.div>
+                </div>
               </div>
             </motion.div>
           )}

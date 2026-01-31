@@ -229,7 +229,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
 
   const handleAddTask = () => {
     haptics.light();
-    // TODO: открыть модал/экран создания задачи
+    router.push(`/projects/${projectId}/add-task`);
   };
 
   const handleOpenChat = () => {

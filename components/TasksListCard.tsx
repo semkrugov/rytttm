@@ -71,11 +71,10 @@ export default function TasksListCard({
 
   return (
     <motion.div
-      layout
       variants={hasAnimated ? undefined : animationVariants.staggerItem}
-      initial={hasAnimated ? false : { opacity: 0, y: 10 }}
-      animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+      initial={hasAnimated ? false : { opacity: 0 }}
+      animate={hasAnimated ? { opacity: 1 } : { opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.98 }}
       transition={
         hasAnimated

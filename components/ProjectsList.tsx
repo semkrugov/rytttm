@@ -54,8 +54,8 @@ export default function ProjectsList({
             <motion.div
               key={project.id}
               variants={hasAnimated ? undefined : animationVariants.staggerItem}
-              initial={hasAnimated ? false : { opacity: 0, y: 10 }}
-              animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+              initial={hasAnimated ? false : { opacity: 0 }}
+              animate={hasAnimated ? false : { opacity: 1 }}
               whileTap={{ scale: 0.98 }}
               transition={hasAnimated ? { duration: 0 } : {
                 type: "spring",
@@ -103,19 +103,11 @@ export default function ProjectsList({
           ))}
         </motion.div>
       ) : (
-        <motion.div
-          initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-          animate={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-          transition={hasAnimated ? { duration: 0 } : {
-            duration: 0.3,
-            ease: [0.19, 1, 0.22, 1],
-          }}
-          className="bg-[var(--tg-theme-secondary-bg-color)] rounded-xl p-8 text-center"
-        >
-          <p className="text-sm text-[var(--tg-theme-hint-color)]">
+        <div className="rounded-xl p-8 text-center bg-[#1E1F22]">
+          <p className="text-sm text-[#9097A7]">
             Ты пока не состоишь ни в одном проекте. Напиши что-нибудь в чат с ботом, чтобы проект появился здесь.
           </p>
-        </motion.div>
+        </div>
       )}
     </motion.div>
   );

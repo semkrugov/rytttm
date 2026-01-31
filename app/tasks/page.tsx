@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import StatusTabs, { type TasksPageFilter } from "@/components/StatusTabs";
@@ -50,6 +51,7 @@ const demoTasks: Task[] = [
 ];
 
 export default function TasksPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useTelegramAuth();
   const hasAnimated = useHasAnimated();
   const [activeFilter, setActiveFilter] = useState<TasksPageFilter>("all");
@@ -215,16 +217,10 @@ export default function TasksPage() {
 
   const handleAddTask = () => {
     haptics.medium();
-    // TODO: Open add task modal
+    router.push("/tasks/add");
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[rgba(35,36,39,1)] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#6CC2FF] animate-spin" />
-      </div>
-    );
-  }
+  const showSkeleton = authLoading || (loading && !isDemoMode);
 
   return (
     <div className="min-h-screen bg-[rgba(35,36,39,1)]">
@@ -235,12 +231,10 @@ export default function TasksPage() {
         }}
       >
         <motion.div
-          initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={hasAnimated ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={
-            hasAnimated
-              ? { duration: 0 }
-              : { duration: 0.4, ease: [0.19, 1, 0.22, 1] }
+            hasAnimated ? { duration: 0 } : { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
           }
           className="flex flex-col gap-[18px]"
         >
@@ -261,7 +255,7 @@ export default function TasksPage() {
               </div>
 
               <AnimatePresence mode="wait">
-                {loading && !isDemoMode ? (
+                {showSkeleton ? (
                   <motion.div
                     key="loading"
                     initial={{ opacity: 0 }}
@@ -298,17 +292,8 @@ export default function TasksPage() {
                     }
                   >
                     {filteredTasks.length > 0 ? (
-                      <motion.div
-                        variants={
-                          hasAnimated
-                            ? undefined
-                            : animationVariants.staggerContainer
-                        }
-                        initial={hasAnimated ? false : "initial"}
-                        animate={hasAnimated ? false : "animate"}
-                        className="flex flex-col justify-center items-center px-0 py-4"
-                      >
-                        <AnimatePresence mode="popLayout" initial={false}>
+                      <div className="flex flex-col justify-center items-center px-0 py-4">
+                        <AnimatePresence mode="sync" initial={false}>
                           {filteredTasks.map((task, index) => (
                             <TasksListCard
                               key={task.id}
@@ -318,17 +303,13 @@ export default function TasksPage() {
                             />
                           ))}
                         </AnimatePresence>
-                      </motion.div>
+                      </div>
                     ) : (
-                      <motion.div
-                        initial={hasAnimated ? false : { opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center py-10 px-4"
-                      >
+                      <div className="text-center py-10 px-4">
                         <p className="text-sm text-[#9097A7]">
                           Нет задач в этом статусе
                         </p>
-                      </motion.div>
+                      </div>
                     )}
                   </motion.div>
                 )}
