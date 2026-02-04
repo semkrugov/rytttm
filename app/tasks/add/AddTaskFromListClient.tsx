@@ -50,12 +50,18 @@ const DEMO_MEMBERS: ProjectMember[] = [
 ];
 
 const WEEKDAY_LABELS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const MONTH_NAMES = [
+  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+];
+
+const DAYS_RANGE = 90;
 
 function getDatesAround(centerOffset = 0) {
   const dates: { date: Date; day: number; weekday: string }[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  for (let i = -10; i <= 10; i++) {
+  for (let i = -DAYS_RANGE; i <= DAYS_RANGE; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() + i + centerOffset);
     dates.push({
@@ -65,6 +71,13 @@ function getDatesAround(centerOffset = 0) {
     });
   }
   return dates;
+}
+
+function getMonthYearLabel(centerOffset: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + centerOffset);
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export default function AddTaskFromListClient() {
@@ -88,8 +101,9 @@ export default function AddTaskFromListClient() {
     return d;
   });
   const [selectedTime, setSelectedTime] = useState({ hour: 12, minute: 0 });
-  const [noDeadline, setNoDeadline] = useState(false);
+  const [noDeadline, setNoDeadline] = useState(true);
   const [dateOffset, setDateOffset] = useState(0);
+  const [showMemberPicker, setShowMemberPicker] = useState(false);
 
   const dateOptions = getDatesAround(dateOffset);
 
@@ -170,17 +184,18 @@ export default function AddTaskFromListClient() {
 
   const handleAddParticipant = () => {
     haptics.light();
+    setShowMemberPicker(true);
   };
 
-  const handleAddFiles = () => {
-    haptics.light();
-  };
-
-  const toggleAssignee = (userId: string) => {
+  const handleSelectMember = (userId: string) => {
     haptics.light();
     setSelectedAssignees((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
+  };
+
+  const handleAddFiles = () => {
+    haptics.light();
   };
 
   const handlePrevWeek = () => {
@@ -191,6 +206,26 @@ export default function AddTaskFromListClient() {
   const handleNextWeek = () => {
     haptics.light();
     setDateOffset((prev) => prev + 3);
+  };
+
+  const handlePrevMonth = () => {
+    haptics.light();
+    setDateOffset((prev) => {
+      const d = new Date();
+      d.setDate(d.getDate() + prev);
+      const daysInPrevMonth = new Date(d.getFullYear(), d.getMonth(), 0).getDate();
+      return prev - daysInPrevMonth;
+    });
+  };
+
+  const handleNextMonth = () => {
+    haptics.light();
+    setDateOffset((prev) => {
+      const d = new Date();
+      d.setDate(d.getDate() + prev);
+      const daysInCurrMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      return prev + daysInCurrMonth;
+    });
   };
 
   const handleSubmit = async () => {
@@ -328,7 +363,7 @@ export default function AddTaskFromListClient() {
           </div>
         </div>
 
-        {/* 3. Участники (показываем только когда выбран проект) */}
+        {/* 3. Участники: только организатор + добавленные */}
         {selectedProject && (
           <div className="mb-6">
             <h2 className="text-white font-medium mb-2">Участники</h2>
@@ -354,50 +389,41 @@ export default function AddTaskFromListClient() {
                     Организатор
                   </span>
                 </div>
-                {/* Остальные участники */}
-                {members
-                  .filter((m) => m.user_id !== user?.id)
-                  .map((member) => {
-                    const profile = Array.isArray(member.profiles)
-                      ? member.profiles[0]
-                      : member.profiles;
-                    const name = profile?.username ?? "Участник";
-                    const role = profile?.position ?? "Участник";
-                    const avatarUrl = profile?.avatar_url;
-                    const isSelected = selectedAssignees.includes(member.user_id);
-                    return (
-                      <button
-                        key={member.user_id}
-                        type="button"
-                        onClick={() => toggleAssignee(member.user_id)}
-                        className="flex items-center gap-3 px-4 py-3 w-full text-left"
-                      >
-                        {avatarUrl ? (
-                          <img
-                            src={avatarUrl}
-                            alt=""
-                            className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-                            {name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <span className="flex-1 text-white font-medium truncate min-w-0">
-                          {name}
-                        </span>
-                        <span
-                          className={`px-3 py-1 rounded-full text-[12px] font-medium flex-shrink-0 ${
-                            isSelected
-                              ? "bg-[#BE87D8]/30 text-[#BE87D8]"
-                              : "bg-[#28292D] text-[#9097A7]"
-                          }`}
-                        >
-                          {role}
-                        </span>
-                      </button>
-                    );
-                  })}
+                {/* Добавленные участники */}
+                {selectedAssignees.map((userId) => {
+                  const member = members.find((m) => m.user_id === userId);
+                  if (!member) return null;
+                  const profile = Array.isArray(member.profiles)
+                    ? member.profiles[0]
+                    : member.profiles;
+                  const name = profile?.username ?? "Участник";
+                  const role = profile?.position ?? "Участник";
+                  const avatarUrl = profile?.avatar_url;
+                  return (
+                    <div
+                      key={member.user_id}
+                      className="flex items-center gap-3 px-4 py-3"
+                    >
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt=""
+                          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                          {name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="flex-1 text-white font-medium truncate min-w-0">
+                        {name}
+                      </span>
+                      <span className="px-3 py-1 rounded-full text-[12px] font-medium flex-shrink-0 bg-[#28292D] text-[#9097A7]">
+                        {role}
+                      </span>
+                    </div>
+                  );
+                })}
                 <button
                   type="button"
                   onClick={handleAddParticipant}
@@ -417,6 +443,30 @@ export default function AddTaskFromListClient() {
         <div className="mb-6">
           <h2 className="text-white font-medium mb-2">Дедлайны</h2>
           <div className="rounded-[14px] bg-[#1E1F22] overflow-hidden p-4">
+            {/* Месяц и год */}
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <motion.button
+                type="button"
+                onClick={handlePrevMonth}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+              >
+                <ChevronLeft className="w-4 h-4 text-[#9097A7]" />
+              </motion.button>
+              <span className="text-white font-medium text-[16px] min-w-[140px] text-center">
+                {getMonthYearLabel(dateOffset)}
+              </span>
+              <motion.button
+                type="button"
+                onClick={handleNextMonth}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+              >
+                <ChevronRight className="w-4 h-4 text-[#9097A7]" />
+              </motion.button>
+            </div>
             {/* Date picker */}
             <div className="flex items-center gap-2 mb-4 pb-2">
               <motion.button
@@ -608,6 +658,97 @@ export default function AddTaskFromListClient() {
                         )}
                       </motion.button>
                     ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Нижний бар: выбор участника */}
+      <AnimatePresence>
+        {showMemberPicker && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/60 z-50"
+              onClick={() => setShowMemberPicker(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-[#1E1F22] rounded-t-[20px] max-h-[70vh] overflow-hidden"
+              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+            >
+              <div className="flex items-center justify-between px-4 py-4 border-b border-[#28292D]">
+                <h3 className="text-white font-semibold text-[18px]">Добавить участника</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowMemberPicker(false)}
+                  className="w-8 h-8 rounded-full bg-[#28292D] flex items-center justify-center"
+                >
+                  <X className="w-4 h-4 text-[#9097A7]" />
+                </button>
+              </div>
+              <div className="overflow-y-auto max-h-[calc(70vh-60px)]">
+                {members.filter((m) => m.user_id !== user?.id).length === 0 ? (
+                  <div className="px-4 py-8 text-center text-[#9097A7]">
+                    Нет других участников в проекте
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[#28292D]">
+                    {members
+                      .filter((m) => m.user_id !== user?.id)
+                      .map((member) => {
+                        const profile = Array.isArray(member.profiles)
+                          ? member.profiles[0]
+                          : member.profiles;
+                        const name = profile?.username ?? "Участник";
+                        const role = profile?.position ?? "Участник";
+                        const avatarUrl = profile?.avatar_url;
+                        const isSelected = selectedAssignees.includes(member.user_id);
+                        return (
+                          <motion.button
+                            key={member.user_id}
+                            type="button"
+                            onClick={() => handleSelectMember(member.user_id)}
+                            whileTap={{ scale: 0.98 }}
+                            className="flex items-center gap-3 px-4 py-4 w-full text-left"
+                          >
+                            {avatarUrl ? (
+                              <img
+                                src={avatarUrl}
+                                alt=""
+                                className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                                {name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <span className="flex-1 text-white font-medium truncate min-w-0">
+                              {name}
+                            </span>
+                            {isSelected ? (
+                              <div className="w-6 h-6 rounded-full bg-[#4CAF50] flex items-center justify-center flex-shrink-0">
+                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <span className="px-3 py-1 rounded-full text-[12px] font-medium flex-shrink-0 bg-[#28292D] text-[#9097A7]">
+                                {role}
+                              </span>
+                            )}
+                          </motion.button>
+                        );
+                      })}
                   </div>
                 )}
               </div>

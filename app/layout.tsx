@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import TelegramProvider from "@/components/TelegramProvider";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 export const metadata: Metadata = {
   title: "Task Tracker",
@@ -27,7 +28,9 @@ export default function RootLayout({
         strategy="beforeInteractive"
       />
       <body>
-        <TelegramProvider>{children}</TelegramProvider>
+        <TelegramProvider>
+          <LanguageProvider>{children}</LanguageProvider>
+        </TelegramProvider>
       </body>
     </html>
   );

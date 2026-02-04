@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { TaskStatus } from "@/types";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/telegram";
 
@@ -24,17 +25,17 @@ interface StatusTabsTasksProps extends Omit<StatusTabsProps, "activeStatus" | "o
   variant: "tasks";
 }
 
-const statusLabels: Record<TaskStatus, string> = {
-  todo: "Не начал",
-  doing: "В работе",
-  done: "Готово",
+const statusLabelKeys: Record<TaskStatus, string> = {
+  todo: "status.todo",
+  doing: "status.doing",
+  done: "status.done",
 };
 
-const tasksFilterLabels: Record<TasksPageFilter, string> = {
-  all: "Все",
-  todo: "Задачи",
-  doing: "В работе",
-  done: "Готово",
+const tasksFilterLabelKeys: Record<TasksPageFilter, string> = {
+  all: "status.all",
+  todo: "status.todo",
+  doing: "status.doing",
+  done: "status.done",
 };
 
 const tasksFilterValues: TasksPageFilter[] = ["all", "doing", "done"];
@@ -49,7 +50,7 @@ export default function StatusTabs(
     embedded = false,
     variant = "default",
   } = props;
-
+  const { t } = useLanguage();
   const isTasksVariant = variant === "tasks";
 
   if (isTasksVariant) {
@@ -80,7 +81,7 @@ export default function StatusTabs(
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
-                {tasksFilterLabels[value]}
+                {t(tasksFilterLabelKeys[value])}
                 {isActive && (
                   <motion.div
                     layoutId="activeTasksTab"
@@ -115,7 +116,7 @@ export default function StatusTabs(
         className="flex gap-2 flex-1 bg-[var(--tg-theme-secondary-bg-color)] rounded-full p-1 relative"
         initial={false}
       >
-        {(Object.keys(statusLabels) as TaskStatus[]).map((status) => {
+        {(Object.keys(statusLabelKeys) as TaskStatus[]).map((status) => {
           const isActive = activeStatus === status;
           
           return (
@@ -135,7 +136,7 @@ export default function StatusTabs(
                 damping: 30,
               }}
             >
-              {statusLabels[status]}
+              {t(statusLabelKeys[status])}
               
               {isActive && (
                 <motion.div

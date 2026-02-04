@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
@@ -12,6 +12,7 @@ import TasksListCard from "@/components/TasksListCard";
 import { Task, TaskStatus } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { animationVariants } from "@/lib/animations";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/telegram";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
@@ -51,6 +52,9 @@ const demoTasks: Task[] = [
 
 export default function TasksPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectIdFromUrl = searchParams.get("project") ?? undefined;
+  const { t } = useLanguage();
   const { user, loading: authLoading, isDemoMode } = useTelegramAuth();
   const [activeFilter, setActiveFilter] = useState<TasksPageFilter>("all");
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -66,7 +70,7 @@ export default function TasksPage() {
       setTasks(demoTasks);
       setLoading(false);
     }
-  }, [authLoading, user?.id]);
+  }, [authLoading, user?.id, t]);
 
   useEffect(() => {
     if (!user) return;
@@ -118,7 +122,7 @@ export default function TasksPage() {
         id: task.id,
         title: task.title,
         project: task.project_id,
-        projectTitle: task.projects?.title || "Без проекта",
+        projectTitle: task.projects?.title || t("tasks.noProject"),
         deadline: task.deadline
           ? new Date(task.deadline).toLocaleDateString("ru-RU")
           : undefined,
@@ -159,11 +163,17 @@ export default function TasksPage() {
       .padStart(2, "0")}`;
   };
 
-  const filteredTasks = tasks.filter((task) => {
-    const taskStatus = task.status || "todo";
-    if (activeFilter === "all") return taskStatus !== "done";
-    return taskStatus === activeFilter;
-  });
+  const filteredTasks = useMemo(() => {
+    let list = tasks;
+    if (projectIdFromUrl) {
+      list = list.filter((task) => task.project === projectIdFromUrl);
+    }
+    return list.filter((task) => {
+      const taskStatus = task.status || "todo";
+      if (activeFilter === "all") return taskStatus !== "done";
+      return taskStatus === activeFilter;
+    });
+  }, [tasks, projectIdFromUrl, activeFilter]);
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     setUpdating(taskId);
@@ -237,7 +247,7 @@ export default function TasksPage() {
           <AppHeader />
           <section className="space-y-3 px-[18px]">
             <h1 className="text-[22px] font-medium text-white">
-              Задачи
+              {t("tasks.title")}
             </h1>
 
             <div className="rounded-[14px] overflow-hidden">
@@ -299,7 +309,7 @@ export default function TasksPage() {
                     ) : (
                       <div className="text-center py-10 px-4">
                         <p className="text-sm text-[#9097A7]">
-                          Нет задач в этом статусе
+                          {t("tasks.empty")}
                         </p>
                       </div>
                     )}

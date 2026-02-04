@@ -385,16 +385,13 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-white font-medium">Задачи</h2>
-            <button
-              type="button"
-              onClick={handleAddTask}
-              className="flex items-center gap-2 text-[#3B82F6]"
-            >
-              <span className="w-8 h-8 rounded-full bg-[#3B82F6]/20 flex items-center justify-center">
-                <Plus className="w-4 h-4 text-[#3B82F6]" strokeWidth={2.5} />
-              </span>
-              <span className="font-medium text-[#3B82F6]">Добавить</span>
-            </button>
+<Link
+                href={`/projects/${projectId}/tasks`}
+                className="flex items-center gap-2 text-[#3B82F6]"
+                onClick={() => haptics.light()}
+              >
+                <span className="font-medium text-[#3B82F6]">Все задачи</span>
+              </Link>
           </div>
 
           <AnimatePresence mode="wait">
@@ -448,6 +445,17 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
               </motion.div>
             )}
           </AnimatePresence>
+
+          <button
+            type="button"
+            onClick={handleAddTask}
+            className="mt-3 flex items-center justify-center gap-2 w-full py-3 rounded-[14px] bg-[#1E1F22] text-[#3B82F6]"
+          >
+            <span className="w-8 h-8 rounded-full bg-[#3B82F6]/20 flex items-center justify-center">
+              <Plus className="w-4 h-4 text-[#3B82F6]" strokeWidth={2.5} />
+            </span>
+            <span className="font-medium text-[#3B82F6]">Добавить</span>
+          </button>
         </div>
       </main>
 

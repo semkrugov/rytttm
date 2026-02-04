@@ -1,28 +1,30 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, CheckSquare, Inbox, User } from "lucide-react";
+import { LayoutDashboard, CheckSquare, FolderOpen, User } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/telegram";
 
 interface Tab {
   id: string;
-  label: string;
+  labelKey: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const tabs: Tab[] = [
-  { id: "widget", label: "Виджет", path: "/", icon: LayoutDashboard },
-  { id: "tasks", label: "Задачи", path: "/tasks", icon: CheckSquare },
-  { id: "inbox", label: "AI-Инбокс", path: "/ai-inbox", icon: Inbox },
-  { id: "profile", label: "Профиль", path: "/profile", icon: User },
+  { id: "widget", labelKey: "nav.widget", path: "/", icon: LayoutDashboard },
+  { id: "tasks", labelKey: "nav.tasks", path: "/tasks", icon: CheckSquare },
+  { id: "projects", labelKey: "nav.projects", path: "/projects", icon: FolderOpen },
+  { id: "profile", labelKey: "nav.profile", path: "/profile", icon: User },
 ];
 
 export default function BottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useLanguage();
 
   const handleTabClick = (path: string) => {
     if (typeof window !== "undefined") {
@@ -33,6 +35,9 @@ export default function BottomNavigation() {
 
   const getActiveTab = () => {
     if (pathname === "/") return "widget";
+    if (pathname.startsWith("/tasks")) return "tasks";
+    if (pathname.startsWith("/projects")) return "projects";
+    if (pathname.startsWith("/profile")) return "profile";
     return tabs.find((tab) => tab.path === pathname)?.id || "widget";
   };
 

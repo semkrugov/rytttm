@@ -32,6 +32,8 @@ export interface Project {
   avatar?: string;
   active?: boolean;
   unreadCount?: number;
+  /** В архиве (скрыт из «Все») */
+  archived?: boolean;
 }
 
 export interface Notification {
