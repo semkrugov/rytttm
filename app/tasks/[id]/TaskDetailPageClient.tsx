@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Paperclip,
@@ -11,11 +11,53 @@ import {
   Play,
   Square,
   Link2,
+  Pencil,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { supabase } from "@/lib/supabase";
 import { haptics } from "@/lib/telegram";
 import { useHasAnimated } from "@/hooks/useHasAnimated";
+import { useTimeTracking } from "@/contexts/TimeTrackingContext";
+
+const WEEKDAY_LABELS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const MONTH_NAMES = [
+  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+];
+const DAYS_RANGE = 90;
+
+function getDatesAround(centerOffset = 0) {
+  const dates: { date: Date; day: number; weekday: string }[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = -DAYS_RANGE; i <= DAYS_RANGE; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i + centerOffset);
+    dates.push({
+      date: d,
+      day: d.getDate(),
+      weekday: WEEKDAY_LABELS[d.getDay()],
+    });
+  }
+  return dates;
+}
+
+function getMonthYearLabel(centerOffset: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + centerOffset);
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+type TaskStatusEdit = "todo" | "doing" | "done";
+const STATUS_LABELS: Record<TaskStatusEdit, string> = {
+  todo: "К выполнению",
+  doing: "В работе",
+  done: "Готово",
+};
 
 interface TaskDetail {
   id: string;
@@ -46,31 +88,147 @@ interface TaskDetailPageClientProps {
 export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientProps) {
   const router = useRouter();
   const hasAnimated = useHasAnimated();
+  const { activeTaskId, elapsedSeconds, startTracking, stopTracking } = useTimeTracking();
 
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [assignee, setAssignee] = useState<AssigneeProfile | null>(null);
   const [creator, setCreator] = useState<AssigneeProfile | null>(null);
   const [projectTitle, setProjectTitle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isTracking, setIsTracking] = useState(false);
-  const [timeElapsed, setTimeElapsed] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [timeElapsedStored, setTimeElapsedStored] = useState(0);
+
+  const [showEditSheet, setShowEditSheet] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState<TaskStatusEdit>("todo");
+  const [editNoDeadline, setEditNoDeadline] = useState(true);
+  const [editSelectedDate, setEditSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    return d;
+  });
+  const [editSelectedTime, setEditSelectedTime] = useState({ hour: 12, minute: 0 });
+  const [editDateOffset, setEditDateOffset] = useState(0);
+  const [editSaving, setEditSaving] = useState(false);
+  const editDateOptions = getDatesAround(editDateOffset);
 
   useEffect(() => {
     if (taskId) loadTask();
   }, [taskId]);
 
-  useEffect(() => {
-    if (isTracking) {
-      intervalRef.current = setInterval(() => setTimeElapsed((p) => p + 1), 1000);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+  const openEditSheet = () => {
+    if (!task) return;
+    haptics.medium();
+    setEditTitle(task.title);
+    setEditDescription(task.description || "");
+    setEditStatus((task.status as TaskStatusEdit) || "todo");
+    if (task.deadline) {
+      const d = new Date(task.deadline);
+      setEditNoDeadline(false);
+      setEditSelectedDate(d);
+      setEditSelectedTime({ hour: d.getHours(), minute: d.getMinutes() });
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      setEditDateOffset(Math.floor((d.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)));
+    } else {
+      setEditNoDeadline(true);
+      const d = new Date();
+      d.setHours(12, 0, 0, 0);
+      setEditSelectedDate(d);
+      setEditSelectedTime({ hour: 12, minute: 0 });
+      setEditDateOffset(0);
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isTracking]);
+    setShowEditSheet(true);
+  };
+
+  const closeEditSheet = () => {
+    haptics.light();
+    setShowEditSheet(false);
+  };
+
+  const handleEditPrevWeek = () => {
+    haptics.light();
+    setEditDateOffset((prev) => prev - 3);
+  };
+  const handleEditNextWeek = () => {
+    haptics.light();
+    setEditDateOffset((prev) => prev + 3);
+  };
+  const handleEditPrevMonth = () => {
+    haptics.light();
+    setEditDateOffset((prev) => {
+      const d = new Date();
+      d.setDate(d.getDate() + prev);
+      const daysInPrevMonth = new Date(d.getFullYear(), d.getMonth(), 0).getDate();
+      return prev - daysInPrevMonth;
+    });
+  };
+  const handleEditNextMonth = () => {
+    haptics.light();
+    setEditDateOffset((prev) => {
+      const d = new Date();
+      d.setDate(d.getDate() + prev);
+      const daysInCurrMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      return prev + daysInCurrMonth;
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!task) return;
+    const titleTrimmed = editTitle.trim();
+    if (!titleTrimmed) return;
+    haptics.medium();
+    setEditSaving(true);
+
+    const deadline = editNoDeadline
+      ? null
+      : new Date(
+          editSelectedDate.getFullYear(),
+          editSelectedDate.getMonth(),
+          editSelectedDate.getDate(),
+          editSelectedTime.hour,
+          editSelectedTime.minute
+        ).toISOString();
+
+    if (taskId.startsWith("demo-")) {
+      setTask((prev) =>
+        prev
+          ? {
+              ...prev,
+              title: titleTrimmed,
+              description: editDescription.trim() || null,
+              status: editStatus,
+              deadline,
+            }
+          : null
+      );
+      closeEditSheet();
+      setEditSaving(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          title: titleTrimmed.slice(0, 200),
+          description: editDescription.trim() || null,
+          status: editStatus,
+          deadline,
+        })
+        .eq("id", taskId);
+      if (error) throw error;
+      closeEditSheet();
+      loadTask();
+    } catch (e) {
+      console.error("Error updating task:", e);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const isTrackingThisTask = activeTaskId === taskId;
+  const timeElapsed = isTrackingThisTask ? elapsedSeconds : timeElapsedStored;
 
   const DEMO_TASKS: Record<string, TaskDetail> = {
     "demo-1": {
@@ -139,8 +297,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
       const projectTitleFromApi = (taskData as { projects?: { title: string } }).projects?.title ?? null;
       setTask({ ...taskData, project_id: taskData.project_id ?? null } as TaskDetail);
       setProjectTitle(projectTitleFromApi);
-      setIsTracking(taskData.is_tracking || false);
-      setTimeElapsed(taskData.time_tracking || 0);
+      setTimeElapsedStored(taskData.time_tracking || 0);
 
       if (taskData.assignee_id) {
         const { data: assigneeData } = await supabase
@@ -168,25 +325,41 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
   async function handleTimeTrackingToggle() {
     if (!task) return;
     haptics.medium();
-    const newIsTracking = !isTracking;
 
-    if (newIsTracking) {
-      try {
-        await supabase.from("tasks").update({ is_tracking: true }).eq("id", taskId);
-        setIsTracking(true);
-      } catch (e) {
-        console.error("Error starting time tracking:", e);
+    if (isTrackingThisTask) {
+      const total = stopTracking();
+      setTimeElapsedStored(total);
+      if (!taskId.startsWith("demo-")) {
+        try {
+          await supabase
+            .from("tasks")
+            .update({ is_tracking: false, time_tracking: total })
+            .eq("id", taskId);
+        } catch (e) {
+          console.error("Error stopping time tracking:", e);
+        }
       }
     } else {
-      setIsTracking(false);
-      try {
-        await supabase
-          .from("tasks")
-          .update({ is_tracking: false, time_tracking: timeElapsed })
-          .eq("id", taskId);
-      } catch (e) {
-        console.error("Error stopping time tracking:", e);
-        setIsTracking(true);
+      if (activeTaskId) {
+        const total = stopTracking();
+        if (!activeTaskId.startsWith("demo-")) {
+          try {
+            await supabase
+              .from("tasks")
+              .update({ is_tracking: false, time_tracking: total })
+              .eq("id", activeTaskId);
+          } catch (e) {
+            console.error("Error stopping previous time tracking:", e);
+          }
+        }
+      }
+      startTracking(taskId, timeElapsedStored);
+      if (!taskId.startsWith("demo-")) {
+        try {
+          await supabase.from("tasks").update({ is_tracking: true }).eq("id", taskId);
+        } catch (e) {
+          console.error("Error starting time tracking:", e);
+        }
       }
     }
   }
@@ -244,6 +417,13 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
         }
         rightSlot={
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={openEditSheet}
+              className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center active:opacity-80 transition-opacity"
+            >
+              <Pencil className="w-5 h-5 text-white" strokeWidth={2} />
+            </button>
             <button className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center">
               <Paperclip className="w-5 h-5 text-white" strokeWidth={2} />
             </button>
@@ -285,7 +465,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
             whileTap={{ scale: 0.96 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            {isTracking ? (
+            {isTrackingThisTask ? (
               <Square
                 className="w-6 h-6 text-[#22c55e]"
                 strokeWidth={2}
@@ -376,6 +556,207 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
           </div>
         </div>
       </main>
+
+      {/* Редактирование задачи — нижняя панель */}
+      <AnimatePresence>
+        {showEditSheet && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/60 z-50"
+              onClick={closeEditSheet}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-[rgba(35,36,39,1)] rounded-t-[20px] max-h-[85vh] overflow-hidden flex flex-col"
+              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+            >
+              <div className="flex items-center justify-between px-4 py-4 border-b border-[#28292D] flex-shrink-0">
+                <h3 className="text-white font-semibold text-[18px]">Редактировать задачу</h3>
+                <button
+                  type="button"
+                  onClick={closeEditSheet}
+                  className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center active:opacity-80"
+                >
+                  <X className="w-5 h-5 text-[#9097A7]" strokeWidth={2} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-[18px] pb-4">
+                <div className="rounded-[14px] bg-[#1E1F22] overflow-hidden divide-y divide-[#28292D] mb-4">
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Название задачи"
+                    className="w-full px-4 py-3 text-white placeholder:text-[#9097A7] text-[16px] outline-none bg-transparent"
+                  />
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Описание..."
+                    rows={3}
+                    className="w-full px-4 py-3 text-white placeholder:text-[#9097A7] text-[16px] outline-none resize-none bg-transparent"
+                  />
+                </div>
+
+                <p className="text-[#9097A7] text-[14px] font-medium mb-2">Статус</p>
+                <div className="flex gap-2 mb-4">
+                  {(["todo", "doing", "done"] as const).map((status) => (
+                    <motion.button
+                      key={status}
+                      type="button"
+                      onClick={() => {
+                        haptics.light();
+                        setEditStatus(status);
+                      }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      className={`flex-1 py-2.5 px-3 rounded-[10px] text-[14px] font-medium transition-colors ${
+                        editStatus === status
+                          ? "bg-[#6CC2FF] text-white"
+                          : "bg-[#28292D] text-[#9097A7]"
+                      }`}
+                    >
+                      {STATUS_LABELS[status]}
+                    </motion.button>
+                  ))}
+                </div>
+
+                <p className="text-white font-medium mb-2">Дедлайн</p>
+                <div className="rounded-[14px] bg-[#1E1F22] overflow-hidden p-4 mb-4">
+                  <div className="flex items-center justify-center gap-3 mb-3">
+                    <motion.button
+                      type="button"
+                      onClick={handleEditPrevMonth}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-[#9097A7]" />
+                    </motion.button>
+                    <span className="text-white font-medium text-[16px] min-w-[140px] text-center">
+                      {getMonthYearLabel(editDateOffset)}
+                    </span>
+                    <motion.button
+                      type="button"
+                      onClick={handleEditNextMonth}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                    >
+                      <ChevronRight className="w-4 h-4 text-[#9097A7]" />
+                    </motion.button>
+                  </div>
+                  <div className="flex items-center gap-2 mb-4 pb-2">
+                    <motion.button
+                      type="button"
+                      onClick={handleEditPrevWeek}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      className="flex-shrink-0 w-8 h-8 rounded-full bg-[#28292D] flex items-center justify-center"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-[#9097A7]" />
+                    </motion.button>
+                    <div className="flex-1 min-w-0 overflow-hidden relative">
+                      <motion.div
+                        animate={{ x: -editDateOffset * 56 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="flex gap-2"
+                      >
+                        {editDateOptions.map((opt) => {
+                          const isSelected =
+                            editSelectedDate.getDate() === opt.date.getDate() &&
+                            editSelectedDate.getMonth() === opt.date.getMonth() &&
+                            editSelectedDate.getFullYear() === opt.date.getFullYear();
+                          return (
+                            <motion.button
+                              key={opt.date.toISOString()}
+                              type="button"
+                              onClick={() => {
+                                haptics.light();
+                                const d = new Date(opt.date);
+                                d.setHours(editSelectedTime.hour, editSelectedTime.minute, 0, 0);
+                                setEditSelectedDate(d);
+                              }}
+                              whileTap={{ scale: 0.95 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                              className={`flex-shrink-0 flex flex-col items-center py-2 px-3 rounded-[10px] min-w-[48px] transition-colors duration-200 ${
+                                isSelected ? "bg-[#6CC2FF] text-white" : "bg-[#28292D] text-[#9097A7]"
+                              }`}
+                            >
+                              <span className="text-[11px]">{opt.weekday}</span>
+                              <span className="text-[16px] font-semibold">{opt.day}</span>
+                            </motion.button>
+                          );
+                        })}
+                      </motion.div>
+                    </div>
+                    <motion.button
+                      type="button"
+                      onClick={handleEditNextWeek}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      className="flex-shrink-0 w-8 h-8 rounded-full bg-[#28292D] flex items-center justify-center"
+                    >
+                      <ChevronRight className="w-4 h-4 text-[#9097A7]" />
+                    </motion.button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!editNoDeadline}
+                        onChange={(e) => setEditNoDeadline(!e.target.checked)}
+                        className="rounded border-[#28292D] bg-[#28292D]"
+                      />
+                      <span className="text-white text-[14px]">Время</span>
+                    </label>
+                    <input
+                      type="time"
+                      value={`${editSelectedTime.hour.toString().padStart(2, "0")}:${editSelectedTime.minute.toString().padStart(2, "0")}`}
+                      onChange={(e) => {
+                        const [h, m] = e.target.value.split(":").map(Number);
+                        setEditSelectedTime({ hour: h, minute: m });
+                      }}
+                      disabled={editNoDeadline}
+                      className="px-3 py-2 rounded-[10px] bg-[#28292D] text-white text-[14px] outline-none disabled:opacity-50"
+                    />
+                    <label className="flex items-center gap-2 cursor-pointer ml-auto">
+                      <input
+                        type="checkbox"
+                        checked={editNoDeadline}
+                        onChange={(e) => setEditNoDeadline(e.target.checked)}
+                        className="rounded border-[#28292D] bg-[#28292D]"
+                      />
+                      <span className="text-[#9097A7] text-[14px]">Без срока</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-[18px] py-3 flex-shrink-0 border-t border-[#28292D]">
+                <motion.button
+                  type="button"
+                  onClick={handleEditSave}
+                  disabled={!editTitle.trim() || editSaving}
+                  className="w-full py-4 rounded-[14px] text-white font-medium text-[16px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: "linear-gradient(90deg, #4CAF50, #45a049)" }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                >
+                  {editSaving ? "Сохранение..." : "Сохранить"}
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

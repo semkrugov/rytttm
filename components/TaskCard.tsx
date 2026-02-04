@@ -9,6 +9,13 @@ import { haptics } from "@/lib/telegram";
 import { cn, generateColorFromString } from "@/lib/utils";
 import { animationVariants } from "@/lib/animations";
 import { useHasAnimated } from "@/hooks/useHasAnimated";
+import { useTimeTracking } from "@/contexts/TimeTrackingContext";
+
+function formatTimeTracking(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
 
 interface TaskCardProps {
   task: Task;
@@ -25,7 +32,12 @@ export default function TaskCard({
   onTimeTrackingToggle,
 }: TaskCardProps) {
   const hasAnimated = useHasAnimated();
+  const { activeTaskId, elapsedSeconds } = useTimeTracking();
   const [isDragging, setIsDragging] = useState(false);
+
+  const isTimerActive = activeTaskId === task.id;
+  const showTimer = task.timeTracking || isTimerActive;
+  const displayTime = isTimerActive ? formatTimeTracking(elapsedSeconds) : (task.timeTracking ?? "00:00");
   const [isCompleting, setIsCompleting] = useState(false);
   const x = useMotionValue(0);
   
@@ -211,7 +223,7 @@ export default function TaskCard({
 
           <div className="flex items-center gap-3 flex-shrink-0">
             {/* Тайм-трекинг */}
-            {task.timeTracking && (
+            {showTimer && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={(e) => {
@@ -220,13 +232,13 @@ export default function TaskCard({
                   }}
                   className="flex items-center gap-1.5 text-sm"
                 >
-                  {task.isTracking ? (
+                  {isTimerActive ? (
                     <Pause className="w-4 h-4 text-red-500" />
                   ) : (
                     <Play className="w-4 h-4 text-green-500" />
                   )}
                   <span className="text-[var(--tg-theme-text-color)]">
-                    {task.timeTracking}
+                    {displayTime}
                   </span>
                 </button>
               </div>

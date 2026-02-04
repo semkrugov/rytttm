@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import TelegramProvider from "@/components/TelegramProvider";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { TimeTrackingProvider } from "@/contexts/TimeTrackingContext";
 
 export const metadata: Metadata = {
   title: "Task Tracker",
@@ -29,7 +30,9 @@ export default function RootLayout({
       />
       <body>
         <TelegramProvider>
-          <LanguageProvider>{children}</LanguageProvider>
+          <LanguageProvider>
+          <TimeTrackingProvider>{children}</TimeTrackingProvider>
+        </LanguageProvider>
         </TelegramProvider>
       </body>
     </html>

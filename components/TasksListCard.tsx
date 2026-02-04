@@ -7,6 +7,13 @@ import { Task, TaskStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { animationVariants } from "@/lib/animations";
 import { useHasAnimated } from "@/hooks/useHasAnimated";
+import { useTimeTracking } from "@/contexts/TimeTrackingContext";
+
+function formatTimeTracking(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
 
 interface TasksListCardProps {
   task: Task;
@@ -64,6 +71,12 @@ export default function TasksListCard({
 }: TasksListCardProps) {
   const router = useRouter();
   const hasAnimated = useHasAnimated();
+  const { activeTaskId, elapsedSeconds } = useTimeTracking();
+
+  const isTimerActive = activeTaskId === task.id;
+  const displayTime = isTimerActive
+    ? formatTimeTracking(elapsedSeconds)
+    : (task.timeTracking ?? "00:00");
 
   const handleRowClick = () => {
     router.push(`/tasks/${task.id}`);
@@ -102,8 +115,8 @@ export default function TasksListCard({
           </span>
         )}
         <span className="flex items-center gap-2 text-[14px] text-[#4CAF50]">
-          <Play className="w-[18px] h-[18px] flex-shrink-0 text-[#4CAF50]" />
-          {task.timeTracking ?? "00:00"}
+          <Play className={cn("w-[18px] h-[18px] flex-shrink-0 text-[#4CAF50]", isTimerActive && "animate-pulse")} />
+          {displayTime}
         </span>
       </div>
 

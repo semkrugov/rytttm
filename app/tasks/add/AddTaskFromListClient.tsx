@@ -12,6 +12,8 @@ import {
   ChevronDown,
   X,
   FolderOpen,
+  User,
+  Clock,
 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { supabase } from "@/lib/supabase";
@@ -104,8 +106,15 @@ export default function AddTaskFromListClient() {
   const [noDeadline, setNoDeadline] = useState(true);
   const [dateOffset, setDateOffset] = useState(0);
   const [showMemberPicker, setShowMemberPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<"participants" | "responsible">("participants");
+  const [selectedResponsibleId, setSelectedResponsibleId] = useState<string | null>(null);
 
   const dateOptions = getDatesAround(dateOffset);
+
+  const responsibleMember = members.find((m) => m.user_id === selectedResponsibleId);
+  const responsibleProfile = responsibleMember
+    ? (Array.isArray(responsibleMember.profiles) ? responsibleMember.profiles[0] : responsibleMember.profiles)
+    : null;
 
   // Загрузка проектов
   useEffect(() => {
@@ -180,15 +189,29 @@ export default function AddTaskFromListClient() {
     setSelectedProject(project);
     setShowProjectPicker(false);
     setSelectedAssignees([]);
+    setSelectedResponsibleId(null);
   };
 
   const handleAddParticipant = () => {
     haptics.light();
+    setPickerMode("participants");
+    setShowMemberPicker(true);
+  };
+
+  const handleOpenResponsiblePicker = () => {
+    haptics.light();
+    if (!selectedProject) return;
+    setPickerMode("responsible");
     setShowMemberPicker(true);
   };
 
   const handleSelectMember = (userId: string) => {
     haptics.light();
+    if (pickerMode === "responsible") {
+      setSelectedResponsibleId((prev) => (prev === userId ? null : userId));
+      setShowMemberPicker(false);
+      return;
+    }
     setSelectedAssignees((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
@@ -259,7 +282,7 @@ export default function AddTaskFromListClient() {
       const { error } = await supabase.from("tasks").insert({
         project_id: selectedProject.id,
         creator_id: user?.id,
-        assignee_id: selectedAssignees[0] || null,
+        assignee_id: selectedResponsibleId ?? selectedAssignees[0] ?? null,
         title,
         description: description || title,
         status: "todo",
@@ -561,17 +584,40 @@ export default function AddTaskFromListClient() {
           </div>
         </div>
 
-        {/* 5. Дополнительно (файлы) */}
+        {/* 5. Дополнительно: Ответственный + Файлы */}
         <div className="mb-8">
           <h2 className="text-white font-medium mb-2">Дополнительно</h2>
-          <button
-            type="button"
-            onClick={handleAddFiles}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-[14px] bg-[#1E1F22] text-[#3B82F6]"
-          >
-            <Paperclip className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
-            <span className="text-[14px] font-medium">Файлы</span>
-          </button>
+          <div className="rounded-[14px] bg-[#1E1F22] overflow-hidden divide-y divide-[#28292D]">
+            <button
+              type="button"
+              onClick={handleOpenResponsiblePicker}
+              disabled={!selectedProject}
+              className="flex items-center gap-3 w-full px-4 py-3 text-left disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <div className="relative flex-shrink-0 w-10 h-10 rounded-full bg-[#6CC2FF]/20 flex items-center justify-center">
+                <User className="w-5 h-5 text-[#6CC2FF]" strokeWidth={2} />
+                <Clock className="absolute bottom-0 right-0 w-3.5 h-3.5 text-[#6CC2FF]" strokeWidth={2} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-[14px] font-medium text-[#6CC2FF]">Ответственный</span>
+                {!selectedProject ? (
+                  <p className="text-[13px] text-[#9097A7] truncate mt-0.5">Сначала выберите проект</p>
+                ) : responsibleProfile ? (
+                  <p className="text-[13px] text-[#9097A7] truncate mt-0.5">
+                    {responsibleProfile.username ?? "Участник"}
+                  </p>
+                ) : null}
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={handleAddFiles}
+              className="flex items-center gap-3 w-full px-4 py-3 text-[#3B82F6]"
+            >
+              <Paperclip className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
+              <span className="text-[14px] font-medium">Файлы</span>
+            </button>
+          </div>
         </div>
       </main>
 
@@ -687,7 +733,9 @@ export default function AddTaskFromListClient() {
               style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-[#28292D]">
-                <h3 className="text-white font-semibold text-[18px]">Добавить участника</h3>
+                <h3 className="text-white font-semibold text-[18px]">
+                  {pickerMode === "responsible" ? "Ответственный" : "Добавить участника"}
+                </h3>
                 <button
                   type="button"
                   onClick={() => setShowMemberPicker(false)}
@@ -697,60 +745,113 @@ export default function AddTaskFromListClient() {
                 </button>
               </div>
               <div className="overflow-y-auto max-h-[calc(70vh-60px)]">
-                {members.filter((m) => m.user_id !== user?.id).length === 0 ? (
-                  <div className="px-4 py-8 text-center text-[#9097A7]">
-                    Нет других участников в проекте
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[#28292D]">
-                    {members
-                      .filter((m) => m.user_id !== user?.id)
-                      .map((member) => {
-                        const profile = Array.isArray(member.profiles)
-                          ? member.profiles[0]
-                          : member.profiles;
-                        const name = profile?.username ?? "Участник";
-                        const role = profile?.position ?? "Участник";
-                        const avatarUrl = profile?.avatar_url;
-                        const isSelected = selectedAssignees.includes(member.user_id);
-                        return (
-                          <motion.button
-                            key={member.user_id}
-                            type="button"
-                            onClick={() => handleSelectMember(member.user_id)}
-                            whileTap={{ scale: 0.98 }}
-                            className="flex items-center gap-3 px-4 py-4 w-full text-left"
-                          >
-                            {avatarUrl ? (
-                              <img
-                                src={avatarUrl}
-                                alt=""
-                                className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-                                {name.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            <span className="flex-1 text-white font-medium truncate min-w-0">
-                              {name}
-                            </span>
-                            {isSelected ? (
-                              <div className="w-6 h-6 rounded-full bg-[#4CAF50] flex items-center justify-center flex-shrink-0">
-                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              </div>
-                            ) : (
-                              <span className="px-3 py-1 rounded-full text-[12px] font-medium flex-shrink-0 bg-[#28292D] text-[#9097A7]">
-                                {role}
+                {pickerMode === "responsible"
+                  ? (members.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-[#9097A7]">
+                        Нет участников в проекте
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-[#28292D]">
+                        {members.map((member) => {
+                          const profile = Array.isArray(member.profiles)
+                            ? member.profiles[0]
+                            : member.profiles;
+                          const name = profile?.username ?? (member.user_id === user?.id ? "Вы" : "Участник");
+                          const role = profile?.position ?? "Участник";
+                          const avatarUrl = profile?.avatar_url;
+                          const isSelected = selectedResponsibleId === member.user_id;
+                          return (
+                            <motion.button
+                              key={member.user_id}
+                              type="button"
+                              onClick={() => handleSelectMember(member.user_id)}
+                              whileTap={{ scale: 0.98 }}
+                              className="flex items-center gap-3 px-4 py-4 w-full text-left"
+                            >
+                              {avatarUrl ? (
+                                <img
+                                  src={avatarUrl}
+                                  alt=""
+                                  className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                                  {name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="flex-1 text-white font-medium truncate min-w-0">
+                                {name}
                               </span>
-                            )}
-                          </motion.button>
-                        );
-                      })}
-                  </div>
-                )}
+                              {isSelected ? (
+                                <div className="w-6 h-6 rounded-full bg-[#4CAF50] flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              ) : (
+                                <span className="px-3 py-1 rounded-full text-[12px] font-medium flex-shrink-0 bg-[#28292D] text-[#9097A7]">
+                                  {role}
+                                </span>
+                              )}
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    ))
+                  : (members.filter((m) => m.user_id !== user?.id).length === 0 ? (
+                      <div className="px-4 py-8 text-center text-[#9097A7]">
+                        Нет других участников в проекте
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-[#28292D]">
+                        {members
+                          .filter((m) => m.user_id !== user?.id)
+                          .map((member) => {
+                            const profile = Array.isArray(member.profiles)
+                              ? member.profiles[0]
+                              : member.profiles;
+                            const name = profile?.username ?? "Участник";
+                            const role = profile?.position ?? "Участник";
+                            const avatarUrl = profile?.avatar_url;
+                            const isSelected = selectedAssignees.includes(member.user_id);
+                            return (
+                              <motion.button
+                                key={member.user_id}
+                                type="button"
+                                onClick={() => handleSelectMember(member.user_id)}
+                                whileTap={{ scale: 0.98 }}
+                                className="flex items-center gap-3 px-4 py-4 w-full text-left"
+                              >
+                                {avatarUrl ? (
+                                  <img
+                                    src={avatarUrl}
+                                    alt=""
+                                    className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                                    {name.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <span className="flex-1 text-white font-medium truncate min-w-0">
+                                  {name}
+                                </span>
+                                {isSelected ? (
+                                  <div className="w-6 h-6 rounded-full bg-[#4CAF50] flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </div>
+                                ) : (
+                                  <span className="px-3 py-1 rounded-full text-[12px] font-medium flex-shrink-0 bg-[#28292D] text-[#9097A7]">
+                                    {role}
+                                  </span>
+                                )}
+                              </motion.button>
+                            );
+                          })}
+                      </div>
+                    ))}
               </div>
             </motion.div>
           </>

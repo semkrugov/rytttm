@@ -439,6 +439,7 @@ export default function Home() {
                     onToggleExpand={() => {
                       setIsAttentionExpanded((prev) => !prev);
                     }}
+                    onAcceptAll={() => setNotifications([])}
                     hasAnimated={hasAnimated}
                   />
                 )}
