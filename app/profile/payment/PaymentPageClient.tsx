@@ -127,7 +127,7 @@ export default function PaymentPageClient() {
                       : "text-[#9097A7]"
                   )}
                 >
-                  <Icon className="w-4 h-4" strokeWidth={2} />
+                  <Icon className="w-4 h-4" />
                   {t(key)}
                 </button>
               ))}
