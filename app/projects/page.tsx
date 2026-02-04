@@ -143,13 +143,17 @@ export default function ProjectsPage() {
 
       if (error) throw error;
 
-      const raw = data || [];
-      const list: Project[] = raw
-        .map((pm: any) => {
-          const proj = Array.isArray(pm.projects) ? pm.projects[0] : pm.projects;
-          return proj ? { id: proj.id, title: proj.title, active: true, unreadCount: 0, archived: false } : null;
-        })
-        .filter((p): p is Project => p !== null);
+      const list: Project[] = (data || []).flatMap((pm: any) => {
+        const proj = Array.isArray(pm.projects) ? pm.projects[0] : pm.projects;
+        if (!proj) return [];
+        return [{
+          id: proj.id,
+          title: proj.title,
+          active: true,
+          unreadCount: 0,
+          archived: false
+        }];
+      });
 
       setProjects(list);
     } catch (e) {
