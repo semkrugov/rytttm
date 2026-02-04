@@ -145,7 +145,7 @@ export default function ProjectsPage() {
 
       const raw = data || [];
       const list: Project[] = raw
-        .map((pm: { project_id: string; projects: { id: string; title: string } | { id: string; title: string }[] | null }) => {
+        .map((pm: any) => {
           const proj = Array.isArray(pm.projects) ? pm.projects[0] : pm.projects;
           return proj ? { id: proj.id, title: proj.title, active: true, unreadCount: 0, archived: false } : null;
         })
