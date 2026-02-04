@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
@@ -50,7 +50,7 @@ const demoTasks: Task[] = [
   },
 ];
 
-export default function TasksPage() {
+function TasksContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project") ?? undefined;
@@ -340,5 +340,13 @@ export default function TasksPage() {
 
       <BottomNavigation />
     </div>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[rgba(35,36,39,1)] flex items-center justify-center text-white">Загрузка задач...</div>}>
+      <TasksContent />
+    </Suspense>
   );
 }
