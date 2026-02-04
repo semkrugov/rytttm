@@ -88,20 +88,21 @@ export default function NotificationsPageClient() {
 
   const toggleNotification = (id: keyof NotificationState) => {
     if (id === "disableAll") {
-      setNotifications((prev) => ({
-        ...prev,
-        disableAll: !prev.disableAll,
-        ...(prev.disableAll
-          ? DEFAULT_NOTIFICATIONS
-          : {
-              newTask: false,
-              changeInTask: false,
-              commentOnTask: false,
-              reactionToTask: false,
-              deadlines: false,
-              newProject: false,
-            }),
-      }));
+      setNotifications((prev) => {
+        const newDisableAll = !prev.disableAll;
+        if (newDisableAll) {
+          return {
+            newTask: false,
+            changeInTask: false,
+            commentOnTask: false,
+            reactionToTask: false,
+            deadlines: false,
+            newProject: false,
+            disableAll: true,
+          };
+        }
+        return { ...DEFAULT_NOTIFICATIONS };
+      });
       return;
     }
     setNotifications((prev) => {
