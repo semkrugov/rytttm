@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { Suspense, useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
@@ -347,5 +347,9 @@ function TasksContent() {
 }
 
 export default function TasksPage() {
-  return <TasksContent />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[rgba(35,36,39,1)] flex items-center justify-center text-white">Загрузка...</div>}>
+      <TasksContent />
+    </Suspense>
+  );
 }
