@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, PanInfo } from "framer-motion";
 import {
   ArrowLeft,
   UserPlus,
@@ -105,6 +105,7 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
   const [selectedResponsibleId, setSelectedResponsibleId] = useState<string | null>(null);
 
   const dateOptions = getDatesAround(dateOffset);
+  const dateDragX = useMotionValue(0);
 
   const responsibleMember = members.find((m) => m.user_id === selectedResponsibleId);
   const responsibleProfile = responsibleMember
@@ -207,6 +208,21 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
       const daysInCurrMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
       return prev + daysInCurrMonth;
     });
+  };
+
+  const handleDateDragEnd = (_: unknown, info: PanInfo) => {
+    const swipeThreshold = 50;
+    const swipeVelocityThreshold = 300;
+
+    if (info.offset.x < -swipeThreshold || info.velocity.x < -swipeVelocityThreshold) {
+      setDateOffset((prev) => prev + 3);
+      haptics.light();
+    } else if (info.offset.x > swipeThreshold || info.velocity.x > swipeVelocityThreshold) {
+      setDateOffset((prev) => prev - 3);
+      haptics.light();
+    }
+
+    dateDragX.set(0);
   };
 
   const handleSubmit = async () => {
@@ -447,14 +463,18 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
               </motion.button>
               <div className="flex-1 min-w-0 overflow-hidden relative">
                 <motion.div
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.2}
+                  onDragEnd={handleDateDragEnd}
                   animate={{ x: -dateOffset * 56 }}
+                  style={{ x: dateDragX }}
                   transition={{
                     type: "spring",
                     stiffness: 300,
                     damping: 30,
                   }}
                   className="flex gap-2"
-                  style={{ x: 0 }}
                 >
                   {dateOptions.map((opt) => {
                     const isSelected =

@@ -239,24 +239,18 @@ export default function ProfilePage() {
     // TODO: навигация по остальным пунктам меню
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[rgba(35,36,39,1)] flex items-center justify-center">
-        <div className="text-white">{t("profile.loading")}</div>
-      </div>
-    );
-  }
-
   const displayName = profileData?.username || t("profile.userDefault");
   const positionText = profileData?.position || t("profile.positionDefault");
 
-  if (!user && !isDemoMode) {
+  if (!user && !isDemoMode && !authLoading) {
     return (
       <div className="min-h-screen bg-[rgba(35,36,39,1)] flex items-center justify-center">
         <div className="text-white">{t("profile.userNotFound")}</div>
       </div>
     );
   }
+
+  const showSkeleton = authLoading;
 
   return (
     <div className="min-h-screen bg-[rgba(35,36,39,1)]">
@@ -269,96 +263,114 @@ export default function ProfilePage() {
           animate={{ opacity: 1 }}
           transition={hasAnimated ? { duration: 0 } : { duration: 0.35, ease: [0.19, 1, 0.22, 1] }}
         >
-          <AppHeader />
+          {showSkeleton ? (
+            <div>
+              <AppHeader />
+              <div className="flex flex-col items-center mb-8 mt-4">
+                <div className="w-24 h-24 rounded-full bg-[#28292D] animate-pulse mb-4" />
+                <div className="h-5 w-32 bg-[#28292D] rounded mb-2 animate-pulse" />
+                <div className="h-4 w-24 bg-[#28292D] rounded animate-pulse" />
+              </div>
+              <div className="space-y-4">
+                <div className="h-20 rounded-[14px] bg-[#1E1F22] animate-pulse" />
+                <div className="h-20 rounded-[14px] bg-[#1E1F22] animate-pulse" />
+                <div className="h-20 rounded-[14px] bg-[#1E1F22] animate-pulse" />
+              </div>
+            </div>
+          ) : (
+            <>
+              <AppHeader />
 
-          {/* Аватар и имя */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="relative mb-4">
-              {profileData?.avatar_url ? (
-                <img
-                  src={profileData.avatar_url}
-                  alt=""
-                  className="w-24 h-24 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-gradient-to-b from-[#9BE1FF] to-[#6CC2FF] flex items-center justify-center">
-                  <span className="text-3xl font-bold text-white">
-                    {(displayName || "П").charAt(0).toUpperCase()}
-                  </span>
+              {/* Аватар и имя */}
+              <div className="flex flex-col items-center mb-8">
+                <div className="relative mb-4">
+                  {profileData?.avatar_url ? (
+                    <img
+                      src={profileData.avatar_url}
+                      alt=""
+                      className="w-24 h-24 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-b from-[#9BE1FF] to-[#6CC2FF] flex items-center justify-center">
+                      <span className="text-3xl font-bold text-white">
+                        {(displayName || "П").charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="text-[22px] font-bold text-white text-center">
-                {displayName}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  haptics.light();
-                  setEditingField("username");
-                }}
-                className="w-8 h-8 rounded-full bg-[#28292D] flex items-center justify-center flex-shrink-0"
-              >
-                <Pencil className="w-4 h-4 text-[#9097A7]" strokeWidth={2} />
-              </button>
-            </div>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <span className="text-[22px] font-bold text-white text-center">
+                    {displayName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.light();
+                      setEditingField("username");
+                    }}
+                    className="w-8 h-8 rounded-full bg-[#28292D] flex items-center justify-center flex-shrink-0"
+                  >
+                    <Pencil className="w-4 h-4 text-[#9097A7]" strokeWidth={2} />
+                  </button>
+                </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                haptics.light();
-                setEditingField("position");
-              }}
-              className="text-[14px] text-[#9097A7] hover:text-white transition-colors"
-            >
-              {positionText}
-            </button>
-          </div>
-
-          {/* MVP блок */}
-          <div className="rounded-[14px] bg-[#1E1F22] p-4 mb-8 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-full bg-[#BE87D8]/30 flex items-center justify-center flex-shrink-0">
-                <Music2 className="w-5 h-5 text-[#BE87D8]" strokeWidth={2} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.light();
+                    setEditingField("position");
+                  }}
+                  className="text-[14px] text-[#9097A7] hover:text-white transition-colors"
+                >
+                  {positionText}
+                </button>
               </div>
-              <div className="min-w-0">
-                <p className="text-[15px] font-semibold text-white">MVP</p>
-                <p className="text-[13px] text-[#9097A7] truncate">
-                  Разблокируйте все функции AI и аналитики
-                </p>
+
+              {/* MVP блок */}
+              <div className="rounded-[14px] bg-[#1E1F22] p-4 mb-8 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-10 h-10 rounded-full bg-[#BE87D8]/30 flex items-center justify-center flex-shrink-0">
+                    <Music2 className="w-5 h-5 text-[#BE87D8]" strokeWidth={2} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-semibold text-white">MVP</p>
+                    <p className="text-[13px] text-[#9097A7] truncate">
+                      Разблокируйте все функции AI и аналитики
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => haptics.medium()}
+                  className="px-4 py-2 rounded-[10px] bg-[#28292D] text-[#9097A7] text-[14px] font-medium flex-shrink-0"
+                >
+                  {t("profile.change")}
+                </button>
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => haptics.medium()}
-              className="px-4 py-2 rounded-[10px] bg-[#28292D] text-[#9097A7] text-[14px] font-medium flex-shrink-0"
-            >
-              {t("profile.change")}
-            </button>
-          </div>
 
-          <MenuSection
-            title={t("profile.app")}
-            items={APP_ITEMS}
-            onItemClick={handleMenuItem}
-            t={t}
-          />
+              <MenuSection
+                title={t("profile.app")}
+                items={APP_ITEMS}
+                onItemClick={handleMenuItem}
+                t={t}
+              />
 
-          <MenuSection
-            title={t("profile.main")}
-            items={MAIN_ITEMS}
-            onItemClick={handleMenuItem}
-            t={t}
-          />
+              <MenuSection
+                title={t("profile.main")}
+                items={MAIN_ITEMS}
+                onItemClick={handleMenuItem}
+                t={t}
+              />
 
-          <MenuSection
-            title={t("profile.support")}
-            items={SUPPORT_ITEMS}
-            onItemClick={handleMenuItem}
-            t={t}
-          />
+              <MenuSection
+                title={t("profile.support")}
+                items={SUPPORT_ITEMS}
+                onItemClick={handleMenuItem}
+                t={t}
+              />
+            </>
+          )}
         </motion.div>
       </main>
 

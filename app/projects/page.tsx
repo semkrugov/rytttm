@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -113,29 +113,33 @@ function ProjectCardSwipe({
   );
 }
 
+let cachedProjects: Project[] | null = null;
+
 export default function ProjectsPage() {
   const router = useRouter();
   const { user, loading: authLoading, isDemoMode } = useTelegramAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(cachedProjects || []);
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedProjects);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<ProjectsTab>("all");
 
   useEffect(() => {
     if (authLoading) return;
     if (user) {
-      loadProjects();
+      loadProjects(Boolean(cachedProjects));
     } else {
       setProjects(demoProjects);
       setLoading(false);
     }
   }, [authLoading, user?.id]);
 
-  const loadProjects = async () => {
+  const loadProjects = async (silent: boolean) => {
     if (!user?.id) return;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       const { data, error } = await supabase
         .from("project_members")
         .select("project_id, projects(id, title)")
@@ -155,6 +159,7 @@ export default function ProjectsPage() {
         }];
       });
 
+      cachedProjects = list;
       setProjects(list);
     } catch (e) {
       console.error("Error loading projects:", e);

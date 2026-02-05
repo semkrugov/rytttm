@@ -11,7 +11,7 @@ interface AppHeaderProps {
 
 export default function AppHeader({ leftSlot, rightSlot }: AppHeaderProps) {
   return (
-    <div className="h-[60px] flex items-center gap-2 px-[18px]">
+    <div className="h-fit flex items-center gap-[1px] px-[18px]">
       <div className="w-10 h-10 shrink-0 flex items-center justify-center ml-[10px]">
         {leftSlot ?? (
           <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80" />

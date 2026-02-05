@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
@@ -50,6 +50,8 @@ const demoTasks: Task[] = [
   },
 ];
 
+let cachedTasks: Task[] | null = null;
+
 function TasksContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,15 +59,15 @@ function TasksContent() {
   const { t } = useLanguage();
   const { user, loading: authLoading, isDemoMode } = useTelegramAuth();
   const [activeFilter, setActiveFilter] = useState<TasksPageFilter>("all");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<Task[]>(cachedTasks || []);
+  const [loading, setLoading] = useState(!cachedTasks);
   const [updating, setUpdating] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
     if (user) {
-      loadTasks();
+      loadTasks(Boolean(cachedTasks));
     } else {
       setTasks(demoTasks);
       setLoading(false);
@@ -79,10 +81,8 @@ function TasksContent() {
     }
     const channel = supabase
       .channel("public:tasks")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tasks" },
-        () => loadTasks()
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () =>
+        loadTasks(false)
       )
       .subscribe();
     channelRef.current = channel;
@@ -93,10 +93,12 @@ function TasksContent() {
     };
   }, [user?.id]);
 
-  const loadTasks = async () => {
+  const loadTasks = async (silent: boolean) => {
     if (!user?.id) return;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       const { data, error } = await supabase
         .from("tasks")
         .select("*, projects(title), assignee:profiles!assignee_id(username, avatar_url), creator:profiles!creator_id(username, avatar_url)")
@@ -147,6 +149,7 @@ function TasksContent() {
         assigneeId: task.assignee_id ?? null,
       }));
 
+      cachedTasks = formattedTasks;
       setTasks(formattedTasks);
     } catch (error) {
       console.error("Error loading tasks:", error);
@@ -344,9 +347,5 @@ function TasksContent() {
 }
 
 export default function TasksPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-[rgba(35,36,39,1)] flex items-center justify-center text-white">Загрузка задач...</div>}>
-      <TasksContent />
-    </Suspense>
-  );
+  return <TasksContent />;
 }

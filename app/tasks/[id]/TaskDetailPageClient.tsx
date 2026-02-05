@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, PanInfo } from "framer-motion";
 import {
   ArrowLeft,
-  Paperclip,
-  MessageCircle,
   Calendar,
   Play,
   Square,
@@ -55,6 +53,12 @@ function getMonthYearLabel(centerOffset: number): string {
 type TaskStatusEdit = "todo" | "doing" | "done";
 const STATUS_LABELS: Record<TaskStatusEdit, string> = {
   todo: "К выполнению",
+  doing: "В работе",
+  done: "Готово",
+};
+
+const QUICK_STATUS_LABELS: Record<TaskStatusEdit, string> = {
+  todo: "Не начал",
   doing: "В работе",
   done: "Готово",
 };
@@ -111,6 +115,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
   const [editDateOffset, setEditDateOffset] = useState(0);
   const [editSaving, setEditSaving] = useState(false);
   const editDateOptions = getDatesAround(editDateOffset);
+  const editDateDragX = useMotionValue(0);
 
   useEffect(() => {
     if (taskId) loadTask();
@@ -171,6 +176,24 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
       const daysInCurrMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
       return prev + daysInCurrMonth;
     });
+  };
+
+  const handleEditDateDragEnd = (_: unknown, info: PanInfo) => {
+    const swipeThreshold = 50;
+    const swipeVelocityThreshold = 300;
+
+    if (info.offset.x < -swipeThreshold || info.velocity.x < -swipeVelocityThreshold) {
+      // Свайп влево — вперёд на 3 дня
+      setEditDateOffset((prev) => prev + 3);
+      haptics.light();
+    } else if (info.offset.x > swipeThreshold || info.velocity.x > swipeVelocityThreshold) {
+      // Свайп вправо — назад на 3 дня
+      setEditDateOffset((prev) => prev - 3);
+      haptics.light();
+    }
+
+    // Сброс позиции драга
+    editDateDragX.set(0);
   };
 
   const handleEditSave = async () => {
@@ -364,6 +387,37 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
     }
   }
 
+  async function handleQuickStatusChange(newStatus: TaskStatusEdit) {
+    if (!task || task.status === newStatus) return;
+
+    haptics.light();
+
+    // Обновляем локально сразу для ощущения скорости
+    setTask((prev) =>
+      prev
+        ? {
+            ...prev,
+            status: newStatus,
+          }
+        : prev
+    );
+
+    // Синхронизируем с БД (кроме демо-задач)
+    if (taskId.startsWith("demo-")) return;
+
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: newStatus })
+        .eq("id", taskId);
+      if (error) throw error;
+    } catch (e) {
+      console.error("Error updating task status:", e);
+      // В случае ошибки перезагрузим данные задачи
+      loadTask();
+    }
+  }
+
   function formatTimeShort(seconds: number): string {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -416,21 +470,13 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
           </button>
         }
         rightSlot={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={openEditSheet}
-              className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center active:opacity-80 transition-opacity"
-            >
-              <Pencil className="w-5 h-5 text-white" strokeWidth={2} />
-            </button>
-            <button className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center">
-              <Paperclip className="w-5 h-5 text-white" strokeWidth={2} />
-            </button>
-            <button className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center">
-              <MessageCircle className="w-5 h-5 text-white" strokeWidth={2} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={openEditSheet}
+            className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center active:opacity-80 transition-opacity"
+          >
+            <Pencil className="w-5 h-5 text-white" strokeWidth={2} />
+          </button>
         }
       />
 
@@ -455,6 +501,49 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
             {task.description}
           </p>
         )}
+
+        {/* Таббар статуса задачи — как на странице всех задач */}
+        <div className="mb-6">
+          <p className="text-sm text-[#9097A7] mb-2">Статус задачи</p>
+          <motion.div
+            className="flex w-full h-11 rounded-[10px] p-[3px] relative bg-[#1E1F22]"
+            initial={false}
+          >
+            {(["todo", "doing", "done"] as const).map((status) => {
+              const isActive = task.status === status;
+              return (
+                <motion.button
+                  key={status}
+                  type="button"
+                  onClick={() => handleQuickStatusChange(status)}
+                  className={`relative flex-1 h-full rounded-[8px] text-[14px] font-medium transition-colors z-10 ${
+                    isActive ? "text-white" : "text-[#9097A7]"
+                  }`}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                >
+                  {QUICK_STATUS_LABELS[status]}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTaskDetailStatusTab"
+                      className="absolute inset-0 rounded-[8px] -z-10"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
+                      }}
+                      initial={false}
+                      transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 30,
+                      }}
+                    />
+                  )}
+                </motion.button>
+              );
+            })}
+          </motion.div>
+        </div>
 
         {/* Таймер / воспроизведение */}
         <div className="flex items-center gap-4 mb-8">
@@ -665,7 +754,12 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                     </motion.button>
                     <div className="flex-1 min-w-0 overflow-hidden relative">
                       <motion.div
+                        drag="x"
+                        dragConstraints={{ left: 0, right: 0 }}
+                        dragElastic={0.2}
+                        onDragEnd={handleEditDateDragEnd}
                         animate={{ x: -editDateOffset * 56 }}
+                        style={{ x: editDateDragX }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className="flex gap-2"
                       >
