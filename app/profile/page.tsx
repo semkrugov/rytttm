@@ -7,8 +7,6 @@ import {
   Shield,
   Bell,
   ChevronRight,
-  X,
-  Check,
   Pencil,
   Music2,
   Crosshair,
@@ -28,97 +26,6 @@ import { supabase } from "@/lib/supabase";
 import { haptics } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 import { useHasAnimated } from "@/hooks/useHasAnimated";
-
-interface EditFieldModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  placeholder: string;
-  saveLabel: string;
-  savingLabel: string;
-  currentValue: string;
-  onSave: (value: string) => Promise<void>;
-}
-
-function EditFieldModal({
-  isOpen,
-  onClose,
-  title,
-  placeholder,
-  saveLabel,
-  savingLabel,
-  currentValue,
-  onSave,
-}: EditFieldModalProps) {
-  const [value, setValue] = useState(currentValue);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) setValue(currentValue);
-  }, [isOpen, currentValue]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await onSave(value);
-      haptics.success();
-      onClose();
-    } catch (error) {
-      console.error("Error saving field:", error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 z-50"
-          />
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
-            className="fixed bottom-0 left-0 right-0 bg-[#1E1F22] rounded-t-[20px] p-6 z-50"
-            style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">{title}</h3>
-              <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-full bg-[#28292D] flex items-center justify-center"
-              >
-                <X className="w-4 h-4 text-[#9097A7]" />
-              </button>
-            </div>
-            <input
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              className="w-full px-4 py-3 rounded-[14px] bg-[#28292D] text-white placeholder:text-[#9097A7] outline-none mb-4"
-              placeholder={placeholder}
-              autoFocus
-            />
-            <button
-              onClick={handleSave}
-              disabled={saving || value.trim() === ""}
-              className="w-full py-3 rounded-[14px] bg-[#3B82F6] text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? savingLabel : <><Check className="w-5 h-5" /> {saveLabel}</>}
-            </button>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
 
 const APP_ITEMS = [
   { id: "records", labelKey: "profile.records", icon: Crosshair },
@@ -191,28 +98,66 @@ export default function ProfilePage() {
   const { t } = useLanguage();
   const { user, loading: authLoading, isDemoMode } = useTelegramAuth();
   const hasAnimated = useHasAnimated();
-  const [editingField, setEditingField] = useState<"username" | "position" | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState(user);
+  const [editFirstName, setEditFirstName] = useState(profileData?.first_name || "");
+  const [editLastName, setEditLastName] = useState(profileData?.last_name || "");
+  const [editPosition, setEditPosition] = useState(profileData?.position || "");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setProfileData(user);
   }, [user]);
 
-  const handleSaveField = async (field: "username" | "position", value: string) => {
+  useEffect(() => {
+    if (isEditing) {
+      setEditFirstName(profileData?.first_name || "");
+      setEditLastName(profileData?.last_name || "");
+      setEditPosition(profileData?.position || "");
+    }
+  }, [isEditing, profileData?.first_name, profileData?.last_name, profileData?.position]);
+
+  const handleSaveProfile = async (data: { first_name: string; last_name: string; position: string }) => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
+      const { data: updated, error } = await supabase
         .from("profiles")
-        .update({ [field]: value.trim() || null })
+        .update({
+          first_name: data.first_name.trim() || null,
+          last_name: data.last_name.trim() || null,
+          position: data.position.trim() || null,
+        })
         .eq("id", user.id)
         .select()
         .single();
       if (error) throw error;
-      setProfileData({ ...user, ...data });
+      setProfileData({ ...user, ...updated });
     } catch (error) {
-      console.error("Error saving field:", error);
+      console.error("Error saving profile:", error);
       throw error;
     }
+  };
+
+  const handleInlineSave = async () => {
+    setSaving(true);
+    try {
+      await handleSaveProfile({
+        first_name: editFirstName,
+        last_name: editLastName,
+        position: editPosition,
+      });
+      haptics.success();
+      setIsEditing(false);
+    } catch {
+      // error already logged in handleSaveProfile
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    haptics.light();
+    setIsEditing(false);
   };
 
   const handleMenuItem = (id: string) => {
@@ -239,7 +184,9 @@ export default function ProfilePage() {
     // TODO: навигация по остальным пунктам меню
   };
 
-  const displayName = profileData?.username || t("profile.userDefault");
+  const displayName = profileData?.first_name 
+    ? `${profileData.first_name} ${profileData.last_name || ""}`.trim() 
+    : (profileData?.username || t("profile.userDefault"));
   const positionText = profileData?.position || t("profile.positionDefault");
 
   if (!user && !isDemoMode && !authLoading) {
@@ -281,7 +228,7 @@ export default function ProfilePage() {
             <>
               <AppHeader />
 
-              {/* Аватар и имя */}
+              {/* Аватар и имя / инлайн-редактирование */}
               <div className="flex flex-col items-center mb-8">
                 <div className="relative mb-4">
                   {profileData?.avatar_url ? (
@@ -299,32 +246,92 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <span className="text-[22px] font-bold text-white text-center">
-                    {displayName}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptics.light();
-                      setEditingField("username");
-                    }}
-                    className="w-8 h-8 rounded-full bg-[#28292D] flex items-center justify-center flex-shrink-0"
-                  >
-                    <Pencil className="w-4 h-4 text-[#9097A7]" strokeWidth={2} />
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptics.light();
-                    setEditingField("position");
-                  }}
-                  className="text-[14px] text-[#9097A7] hover:text-white transition-colors"
-                >
-                  {positionText}
-                </button>
+                <AnimatePresence mode="wait">
+                  {!isEditing ? (
+                    <motion.div
+                      key="view"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.2, ease: [0.19, 1, 0.22, 1] }}
+                      className="flex flex-col items-center w-full"
+                    >
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <span className="text-[22px] font-bold text-white text-center">
+                          {displayName}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            haptics.light();
+                            setIsEditing(true);
+                          }}
+                          className="w-8 h-8 rounded-full bg-[#28292D] flex items-center justify-center flex-shrink-0"
+                        >
+                          <Pencil className="w-4 h-4 text-[#9097A7]" strokeWidth={2} />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          haptics.light();
+                          setIsEditing(true);
+                        }}
+                        className="text-[14px] text-[#9097A7] hover:text-white transition-colors"
+                      >
+                        {positionText}
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="edit"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.2, ease: [0.19, 1, 0.22, 1] }}
+                      className="w-full max-w-[320px] space-y-3"
+                    >
+                      <input
+                        type="text"
+                        value={editFirstName}
+                        onChange={(e) => setEditFirstName(e.target.value)}
+                        placeholder={t("profile.firstName")}
+                        className="w-full px-4 py-3 rounded-[14px] bg-[#28292D] text-white placeholder:text-[#9097A7] outline-none text-[16px]"
+                      />
+                      <input
+                        type="text"
+                        value={editLastName}
+                        onChange={(e) => setEditLastName(e.target.value)}
+                        placeholder={t("profile.lastName")}
+                        className="w-full px-4 py-3 rounded-[14px] bg-[#28292D] text-white placeholder:text-[#9097A7] outline-none text-[16px]"
+                      />
+                      <input
+                        type="text"
+                        value={editPosition}
+                        onChange={(e) => setEditPosition(e.target.value)}
+                        placeholder={t("profile.position")}
+                        className="w-full px-4 py-3 rounded-[14px] bg-[#28292D] text-white placeholder:text-[#9097A7] outline-none text-[16px]"
+                      />
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="flex-1 py-3 rounded-[14px] bg-[#28292D] text-[#9097A7] font-medium text-[14px] active:opacity-80"
+                        >
+                          {t("profile.cancel")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleInlineSave}
+                          disabled={saving}
+                          className="flex-1 py-3 rounded-[14px] bg-[#5C6B7F] text-white font-medium text-[14px] disabled:opacity-70 active:scale-[0.98]"
+                        >
+                          {saving ? t("profile.saving") : t("profile.saveChanges")}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* MVP блок */}
@@ -373,27 +380,6 @@ export default function ProfilePage() {
           )}
         </motion.div>
       </main>
-
-      <EditFieldModal
-        isOpen={editingField === "username"}
-        onClose={() => setEditingField(null)}
-        title={t("profile.editField", { field: t("profile.fieldUsername") })}
-        placeholder={t("profile.enterField", { field: t("profile.fieldUsername") })}
-        saveLabel={t("profile.save")}
-        savingLabel={t("profile.saving")}
-        currentValue={profileData?.username || ""}
-        onSave={async (value) => handleSaveField("username", value)}
-      />
-      <EditFieldModal
-        isOpen={editingField === "position"}
-        onClose={() => setEditingField(null)}
-        title={t("profile.editField", { field: t("profile.fieldPosition") })}
-        placeholder={t("profile.enterField", { field: t("profile.fieldPosition") })}
-        saveLabel={t("profile.save")}
-        savingLabel={t("profile.saving")}
-        currentValue={profileData?.position || ""}
-        onSave={async (value) => handleSaveField("position", value)}
-      />
 
       <BottomNavigation />
     </div>

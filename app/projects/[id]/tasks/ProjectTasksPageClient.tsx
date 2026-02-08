@@ -70,6 +70,7 @@ type TaskRow = {
   is_tracking: boolean | null;
   creator_id: string | null;
   assignee_id: string | null;
+  task_type: string | null;
   creator?: { username: string | null; avatar_url: string | null } | null;
   assignee?: { username: string | null; avatar_url: string | null } | null;
 };
@@ -157,6 +158,7 @@ export default function ProjectTasksPageClient({ projectId }: ProjectTasksPageCl
         assignee: task.assignee || null,
         creatorId: task.creator_id ?? null,
         assigneeId: task.assignee_id ?? null,
+        type: (task.task_type as Task['type']) || null,
       }));
       setTasks(formattedTasks);
     } catch (e) {

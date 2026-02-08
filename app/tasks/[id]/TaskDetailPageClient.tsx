@@ -16,6 +16,11 @@ import {
   User,
   UserPlus,
   Check,
+  Flame,
+  MessageSquare,
+  Hourglass,
+  Bug,
+  Lightbulb,
 } from "lucide-react";
 
 interface ProjectMember {
@@ -88,6 +93,7 @@ interface TaskDetail {
   confidence_score: number | null;
   time_tracking: number | null;
   is_tracking: boolean | null;
+  task_type: string | null;
 }
 
 interface AssigneeProfile {
@@ -134,6 +140,15 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
   const [pickerMode, setPickerMode] = useState<"assignee" | "creator">("assignee");
   const [editAssigneeId, setEditAssigneeId] = useState<string | null>(null);
   const [editCreatorId, setEditCreatorId] = useState<string | null>(null);
+  const [editType, setEditType] = useState<string | null>(null);
+
+  const taskTypes = [
+    { id: 'urgent', icon: Flame, color: '#EF4444' },
+    { id: 'discuss', icon: MessageSquare, color: '#3B82F6' },
+    { id: 'wait', icon: Hourglass, color: '#F59E0B' },
+    { id: 'fix', icon: Bug, color: '#EC4899' },
+    { id: 'idea', icon: Lightbulb, color: '#EAB308' },
+  ] as const;
 
   async function loadProjectMembers() {
     if (!task?.project_id || taskId.startsWith("demo-")) return;
@@ -163,6 +178,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
     setEditStatus((task.status as TaskStatusEdit) || "todo");
     setEditAssigneeId(task.assignee_id);
     setEditCreatorId(task.creator_id);
+    setEditType(task.task_type);
     loadProjectMembers();
 
     if (task.deadline) {
@@ -260,6 +276,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
               deadline,
               assignee_id: editAssigneeId,
               creator_id: editCreatorId,
+              task_type: editType,
             }
           : null
       );
@@ -278,6 +295,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
           deadline,
           assignee_id: editAssigneeId,
           creator_id: editCreatorId,
+          task_type: editType,
         })
         .eq("id", taskId);
       if (error) throw error;
@@ -307,6 +325,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
       confidence_score: null,
       time_tracking: 0,
       is_tracking: false,
+      task_type: null,
     },
     "demo-2": {
       id: "demo-2",
@@ -321,6 +340,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
       confidence_score: null,
       time_tracking: 0,
       is_tracking: false,
+      task_type: 'urgent',
     },
     "demo-3": {
       id: "demo-3",
@@ -335,6 +355,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
       confidence_score: null,
       time_tracking: 0,
       is_tracking: false,
+      task_type: 'idea',
     },
   };
 
@@ -544,7 +565,22 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
 
         {/* Таббар статуса задачи — как на странице всех задач */}
         <div className="mb-6">
-          <p className="text-sm text-[#9097A7] mb-2">Статус задачи</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-[#9097A7]">Статус задачи</p>
+            {task.task_type && (
+              <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-[#28292D]">
+                {(() => {
+                  const t = taskTypes.find(type => type.id === task.task_type);
+                  if (!t) return null;
+                  return (
+                    <>
+                      <t.icon className="w-4 h-4" color={t.color} />
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
           <motion.div
             className="flex w-full h-11 rounded-[10px] p-[3px] relative bg-[#1E1F22]"
             initial={false}
@@ -754,6 +790,29 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                     >
                       {STATUS_LABELS[status]}
                     </motion.button>
+                  ))}
+                </div>
+
+                <p className="text-[#9097A7] text-[14px] font-medium mb-2">Тип задачи</p>
+                <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+                  {taskTypes.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        haptics.light();
+                        setEditType(editType === t.id ? null : t.id);
+                      }}
+                      className={`p-3 rounded-xl transition-all duration-200 flex-shrink-0 ${
+                        editType === t.id ? "bg-[#3B82F6]/20 border border-[#3B82F6]" : "bg-[#28292D] border border-transparent"
+                      }`}
+                    >
+                      <t.icon
+                        className="w-5 h-5"
+                        strokeWidth={editType === t.id ? 2.5 : 2}
+                        color={editType === t.id ? t.color : "#9097A7"}
+                      />
+                    </button>
                   ))}
                 </div>
 

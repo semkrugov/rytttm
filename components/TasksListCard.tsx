@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, PanInfo, useMotionValue, useTransform, animate } from "framer-motion";
-import { Calendar, Play, Check } from "lucide-react";
+import { Calendar, Play, Check, Flame, MessageSquare, Hourglass, Bug, Lightbulb } from "lucide-react";
 import { Task, TaskStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { animationVariants } from "@/lib/animations";
@@ -225,6 +225,18 @@ export default function TasksListCard({
           ) : (
             <span className="flex-1 min-w-0" />
           )}
+          
+          {/* Тип задачи */}
+          {task.type && (
+            <div className="flex-shrink-0">
+              {task.type === 'urgent' && <Flame className="w-4 h-4 text-[#EF4444]" />}
+              {task.type === 'discuss' && <MessageSquare className="w-4 h-4 text-[#3B82F6]" />}
+              {task.type === 'wait' && <Hourglass className="w-4 h-4 text-[#F59E0B]" />}
+              {task.type === 'fix' && <Bug className="w-4 h-4 text-[#EC4899]" />}
+              {task.type === 'idea' && <Lightbulb className="w-4 h-4 text-[#EAB308]" />}
+            </div>
+          )}
+
           <span
             className={cn(
               "px-2 py-1 rounded-md text-[11px] font-medium flex-shrink-0 whitespace-nowrap",

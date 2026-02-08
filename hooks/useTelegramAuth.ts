@@ -18,6 +18,8 @@ interface Profile {
   id: string;
   telegram_id: number;
   username: string | null;
+  first_name: string | null;
+  last_name: string | null;
   avatar_url: string | null;
   position: string | null;
   created_at: string;
@@ -54,6 +56,8 @@ export function useTelegramAuth(): UseTelegramAuthReturn {
         const telegramId = telegramUser.id;
         const username = telegramUser.username || null;
         const avatarUrl = telegramUser.photo_url || null;
+        const firstName = telegramUser.first_name || null;
+        const lastName = telegramUser.last_name || null;
 
         // Ищем пользователя в базе данных
         const { data: existingUser, error: searchError } = await supabase
@@ -77,6 +81,12 @@ export function useTelegramAuth(): UseTelegramAuthReturn {
           }
           if (avatarUrl && existingUser.avatar_url !== avatarUrl) {
             updates.avatar_url = avatarUrl;
+          }
+          if (firstName && !existingUser.first_name) {
+            updates.first_name = firstName;
+          }
+          if (lastName && !existingUser.last_name) {
+            updates.last_name = lastName;
           }
 
           if (Object.keys(updates).length > 0) {
@@ -104,6 +114,8 @@ export function useTelegramAuth(): UseTelegramAuthReturn {
               telegram_id: telegramId,
               username: username,
               avatar_url: avatarUrl,
+              first_name: firstName,
+              last_name: lastName,
             })
             .select()
             .single();

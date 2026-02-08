@@ -14,7 +14,13 @@ import {
   FolderOpen,
   User,
   Clock,
+  Flame,
+  MessageSquare,
+  Hourglass,
+  Bug,
+  Lightbulb,
 } from "lucide-react";
+import { Task } from "@/types";
 import AppHeader from "@/components/AppHeader";
 import { supabase } from "@/lib/supabase";
 import { haptics } from "@/lib/telegram";
@@ -108,6 +114,15 @@ export default function AddTaskFromListClient() {
   const [showMemberPicker, setShowMemberPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<"participants" | "responsible">("participants");
   const [selectedResponsibleId, setSelectedResponsibleId] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<NonNullable<Task['type']> | null>(null);
+
+  const taskTypes = [
+    { id: 'urgent', icon: Flame, color: '#EF4444' },
+    { id: 'discuss', icon: MessageSquare, color: '#3B82F6' },
+    { id: 'wait', icon: Hourglass, color: '#F59E0B' },
+    { id: 'fix', icon: Bug, color: '#EC4899' },
+    { id: 'idea', icon: Lightbulb, color: '#EAB308' },
+  ] as const;
 
   const dateOptions = getDatesAround(dateOffset);
   const dateDragX = useMotionValue(0);
@@ -303,6 +318,7 @@ export default function AddTaskFromListClient() {
         description: description || title,
         status: "todo",
         priority: "medium",
+        task_type: selectedType,
         deadline,
       });
 
@@ -637,6 +653,27 @@ export default function AddTaskFromListClient() {
               <Paperclip className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
               <span className="text-[14px] font-medium">Файлы</span>
             </button>
+            <div className="flex items-center justify-between px-4 py-3">
+              {taskTypes.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    haptics.light();
+                    setSelectedType(selectedType === t.id ? null : t.id);
+                  }}
+                  className={`p-2 rounded-xl transition-all duration-200 ${
+                    selectedType === t.id ? "bg-white/10 scale-110" : "hover:bg-white/5"
+                  }`}
+                >
+                  <t.icon
+                    className="w-6 h-6 transition-colors duration-200"
+                    strokeWidth={selectedType === t.id ? 2.5 : 2}
+                    color={selectedType === t.id ? t.color : "#9097A7"}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </main>

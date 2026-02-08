@@ -62,4 +62,15 @@ export const haptics = {
       }
     }
   },
+  selection: () => {
+    if (typeof window === "undefined") return;
+    const webApp = getWebApp();
+    if (webApp?.HapticFeedback) {
+      try {
+        webApp.HapticFeedback.selectionChanged();
+      } catch (e) {
+        // Haptic feedback not available (e.g., outside Telegram)
+      }
+    }
+  },
 };

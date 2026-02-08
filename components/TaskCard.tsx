@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { Play, Pause, Calendar, Check } from "lucide-react";
+import { Play, Pause, Calendar, Check, Flame, MessageSquare, Hourglass, Bug, Lightbulb } from "lucide-react";
 import { Task, TaskStatus } from "@/types";
 import { haptics } from "@/lib/telegram";
 import { cn, generateColorFromString } from "@/lib/utils";
@@ -222,6 +222,17 @@ export default function TaskCard({
           </div>
 
           <div className="flex items-center gap-3 flex-shrink-0">
+            {/* Тип задачи */}
+            {task.type && (
+              <div className="flex items-center justify-center">
+                {task.type === 'urgent' && <Flame className="w-4 h-4 text-[#EF4444]" />}
+                {task.type === 'discuss' && <MessageSquare className="w-4 h-4 text-[#3B82F6]" />}
+                {task.type === 'wait' && <Hourglass className="w-4 h-4 text-[#F59E0B]" />}
+                {task.type === 'fix' && <Bug className="w-4 h-4 text-[#EC4899]" />}
+                {task.type === 'idea' && <Lightbulb className="w-4 h-4 text-[#EAB308]" />}
+              </div>
+            )}
+
             {/* Тайм-трекинг */}
             {showTimer && (
               <div className="flex items-center gap-2">

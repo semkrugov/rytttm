@@ -24,6 +24,8 @@ export interface Task {
   /** id автора и исполнителя для дедупа аватарок */
   creatorId?: string | null;
   assigneeId?: string | null;
+  /** Тип/тег задачи */
+  type?: 'urgent' | 'discuss' | 'wait' | 'fix' | 'idea' | null;
 }
 
 export interface Project {
