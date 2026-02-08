@@ -317,10 +317,10 @@ export default function TariffsPageClient() {
                 {(!expandedId || expandedId !== card.id || !card.hasPayment) && (
                   <div className="flex items-baseline gap-2 mb-6">
                     <span className={cn("text-[32px] font-bold", card.priceColor || "text-white")}>
-                      {card.price || t(card.priceKey)}
+                      {card.price || (card.priceKey && t(card.priceKey))}
                     </span>
                     <span className="text-[15px] text-[#9097A7]">
-                      {card.period || t(card.periodKey)}
+                      {card.period || (card.periodKey && t(card.periodKey))}
                     </span>
                   </div>
                 )}
