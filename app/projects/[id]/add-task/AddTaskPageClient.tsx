@@ -29,7 +29,7 @@ interface ProjectMember {
 }
 
 const DEMO_PROJECTS: Record<string, { id: string; title: string }> = {
-  "demo-work": { id: "demo-work", title: "Team_chat_project78" },
+  "demo-work": { id: "demo-work", title: "Рабочий чат" },
   "demo-life": { id: "demo-life", title: "Личные дела" },
 };
 
@@ -182,12 +182,12 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
 
   const handlePrevWeek = () => {
     haptics.light();
-    setDateOffset((prev) => prev - 3);
+    setDateOffset((prev) => prev - 2);
   };
 
   const handleNextWeek = () => {
     haptics.light();
-    setDateOffset((prev) => prev + 3);
+    setDateOffset((prev) => prev + 2);
   };
 
   const handlePrevMonth = () => {
@@ -215,10 +215,10 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
     const swipeVelocityThreshold = 300;
 
     if (info.offset.x < -swipeThreshold || info.velocity.x < -swipeVelocityThreshold) {
-      setDateOffset((prev) => prev + 3);
+      setDateOffset((prev) => prev + 2);
       haptics.light();
     } else if (info.offset.x > swipeThreshold || info.velocity.x > swipeVelocityThreshold) {
-      setDateOffset((prev) => prev - 3);
+      setDateOffset((prev) => prev - 2);
       haptics.light();
     }
 

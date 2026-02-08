@@ -16,7 +16,7 @@ import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 import { cn } from "@/lib/utils";
 
 const DEMO_PROJECTS: Record<string, { id: string; title: string }> = {
-  "demo-work": { id: "demo-work", title: "Team_chat_project78" },
+  "demo-work": { id: "demo-work", title: "Рабочий чат" },
   "demo-life": { id: "demo-life", title: "Личные дела" },
 };
 
@@ -25,7 +25,7 @@ const DEMO_TASKS: Task[] = [
     id: "demo-1",
     title: "Сверстать демо-экран",
     project: "demo-work",
-    projectTitle: "Team_chat_project78",
+    projectTitle: "Рабочий чат",
     deadline: undefined,
     status: "doing",
     completed: false,
@@ -35,7 +35,7 @@ const DEMO_TASKS: Task[] = [
     id: "demo-2",
     title: "Подключить платежи",
     project: "demo-work",
-    projectTitle: "Team_chat_project78",
+    projectTitle: "Рабочий чат",
     deadline: undefined,
     status: "todo",
     completed: false,

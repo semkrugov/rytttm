@@ -72,7 +72,7 @@ export default function AttentionCards({
   return (
     <div className="mx-auto w-full max-w-[360px] px-0">
       {onAcceptAll && (notifications.length > 0 || isDismissing) && (
-        <div className="flex justify-end px-0 mb-1">
+        <div className="flex justify-end px-0 mb-3">
           <button
             type="button"
             onClick={handleAcceptAll}

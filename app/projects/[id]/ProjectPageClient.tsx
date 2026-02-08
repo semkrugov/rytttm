@@ -36,7 +36,7 @@ interface ProjectPageClientProps {
 }
 
 const DEMO_PROJECTS: Record<string, { id: string; title: string }> = {
-  "demo-work": { id: "demo-work", title: "Team_chat_project78" },
+  "demo-work": { id: "demo-work", title: "Рабочий чат" },
   "demo-life": { id: "demo-life", title: "Личные дела" },
 };
 
@@ -56,7 +56,7 @@ const DEMO_TASKS: Task[] = [
     id: "demo-1",
     title: "Сверстать демо-экран",
     project: "demo-work",
-    projectTitle: "Team_chat_project78",
+    projectTitle: "Рабочий чат",
     deadline: undefined,
     deadlineTime: "12:00 | 25.02",
     status: "doing",
@@ -67,7 +67,7 @@ const DEMO_TASKS: Task[] = [
     id: "demo-2",
     title: "Подключить платежи",
     project: "demo-work",
-    projectTitle: "Team_chat_project78",
+    projectTitle: "Рабочий чат",
     deadline: undefined,
     deadlineTime: "14:30 | 26.02",
     status: "todo",
@@ -78,7 +78,7 @@ const DEMO_TASKS: Task[] = [
     id: "demo-3",
     title: "Отладка БД на проде",
     project: "demo-work",
-    projectTitle: "Team_chat_project78",
+    projectTitle: "Рабочий чат",
     deadline: undefined,
     deadlineTime: "09:00 | 24.02",
     status: "todo",

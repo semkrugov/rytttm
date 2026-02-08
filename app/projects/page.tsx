@@ -18,7 +18,7 @@ const SWIPE_THRESHOLD = 48;
 const demoProjects: Project[] = [
   {
     id: "demo-work",
-    title: "Team_chat_project78",
+    title: "Рабочий чат",
     active: true,
     unreadCount: 3,
     archived: false,

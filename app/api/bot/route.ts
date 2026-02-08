@@ -169,7 +169,12 @@ async function ensureProject(chatId: number, title: string): Promise<string | nu
     .single();
 
   if (existingProject) {
-    console.log("[BOT] Project found:", existingProject.id);
+    // Синхронизируем название проекта с текущим названием чата в Telegram
+    await supabase
+      .from("projects")
+      .update({ title })
+      .eq("id", existingProject.id);
+    console.log("[BOT] Project found, title synced:", existingProject.id);
     return existingProject.id;
   }
 

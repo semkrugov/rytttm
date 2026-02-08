@@ -13,7 +13,19 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  User,
+  UserPlus,
+  Check,
 } from "lucide-react";
+
+interface ProjectMember {
+  user_id: string;
+  profiles: {
+    avatar_url: string | null;
+    username: string | null;
+    position: string | null;
+  } | null;
+}
 import AppHeader from "@/components/AppHeader";
 import { supabase } from "@/lib/supabase";
 import { haptics } from "@/lib/telegram";
@@ -117,6 +129,28 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
   const editDateOptions = getDatesAround(editDateOffset);
   const editDateDragX = useMotionValue(0);
 
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [showMemberPicker, setShowMemberPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<"assignee" | "creator">("assignee");
+  const [editAssigneeId, setEditAssigneeId] = useState<string | null>(null);
+  const [editCreatorId, setEditCreatorId] = useState<string | null>(null);
+
+  async function loadProjectMembers() {
+    if (!task?.project_id || taskId.startsWith("demo-")) return;
+    if (members.length > 0) return;
+
+    try {
+      const { data: membersData, error: membersError } = await supabase
+        .from("project_members")
+        .select("*, profiles(username, avatar_url, position)")
+        .eq("project_id", task.project_id);
+      if (membersError) throw membersError;
+      setMembers((membersData as any[]) || []);
+    } catch (e) {
+      console.error("Error loading members:", e);
+    }
+  }
+
   useEffect(() => {
     if (taskId) loadTask();
   }, [taskId]);
@@ -127,6 +161,10 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
     setEditTitle(task.title);
     setEditDescription(task.description || "");
     setEditStatus((task.status as TaskStatusEdit) || "todo");
+    setEditAssigneeId(task.assignee_id);
+    setEditCreatorId(task.creator_id);
+    loadProjectMembers();
+
     if (task.deadline) {
       const d = new Date(task.deadline);
       setEditNoDeadline(false);
@@ -153,11 +191,11 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
 
   const handleEditPrevWeek = () => {
     haptics.light();
-    setEditDateOffset((prev) => prev - 3);
+    setEditDateOffset((prev) => prev - 2);
   };
   const handleEditNextWeek = () => {
     haptics.light();
-    setEditDateOffset((prev) => prev + 3);
+    setEditDateOffset((prev) => prev + 2);
   };
   const handleEditPrevMonth = () => {
     haptics.light();
@@ -183,12 +221,10 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
     const swipeVelocityThreshold = 300;
 
     if (info.offset.x < -swipeThreshold || info.velocity.x < -swipeVelocityThreshold) {
-      // Свайп влево — вперёд на 3 дня
-      setEditDateOffset((prev) => prev + 3);
+      setEditDateOffset((prev) => prev + 2);
       haptics.light();
     } else if (info.offset.x > swipeThreshold || info.velocity.x > swipeVelocityThreshold) {
-      // Свайп вправо — назад на 3 дня
-      setEditDateOffset((prev) => prev - 3);
+      setEditDateOffset((prev) => prev - 2);
       haptics.light();
     }
 
@@ -222,6 +258,8 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
               description: editDescription.trim() || null,
               status: editStatus,
               deadline,
+              assignee_id: editAssigneeId,
+              creator_id: editCreatorId,
             }
           : null
       );
@@ -238,6 +276,8 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
           description: editDescription.trim() || null,
           status: editStatus,
           deadline,
+          assignee_id: editAssigneeId,
+          creator_id: editCreatorId,
         })
         .eq("id", taskId);
       if (error) throw error;
@@ -831,6 +871,82 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                       <span className="text-[#9097A7] text-[14px]">Без срока</span>
                     </label>
                   </div>
+                </div>
+
+                <div className="rounded-[14px] bg-[#1E1F22] overflow-hidden divide-y divide-[#28292D] mb-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.light();
+                      setPickerMode("assignee");
+                      setShowMemberPicker(true);
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-3 text-left active:bg-[#28292D] transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                      {(() => {
+                        const m = members.find((m) => m.user_id === editAssigneeId);
+                        const p = m?.profiles
+                          ? Array.isArray(m.profiles)
+                            ? m.profiles[0]
+                            : m.profiles
+                          : null;
+                        return (p?.username || "?")[0]?.toUpperCase();
+                      })()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[14px] text-[#9097A7]">Исполнитель</span>
+                      <p className="text-white font-medium truncate">
+                        {(() => {
+                          const m = members.find((m) => m.user_id === editAssigneeId);
+                          const p = m?.profiles
+                            ? Array.isArray(m.profiles)
+                              ? m.profiles[0]
+                              : m.profiles
+                            : null;
+                          return p?.username || "Не назначен";
+                        })()}
+                      </p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-[#505050]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.light();
+                      setPickerMode("creator");
+                      setShowMemberPicker(true);
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-3 text-left active:bg-[#28292D] transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-[#F97316] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                      {(() => {
+                        const m = members.find((m) => m.user_id === editCreatorId);
+                        const p = m?.profiles
+                          ? Array.isArray(m.profiles)
+                            ? m.profiles[0]
+                            : m.profiles
+                          : null;
+                        return (p?.username || "?")[0]?.toUpperCase();
+                      })()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[14px] text-[#9097A7]">Ответственный</span>
+                      <p className="text-white font-medium truncate">
+                        {(() => {
+                          const m = members.find((m) => m.user_id === editCreatorId);
+                          const p = m?.profiles
+                            ? Array.isArray(m.profiles)
+                              ? m.profiles[0]
+                              : m.profiles
+                            : null;
+                          return p?.username || "Не назначен";
+                        })()}
+                      </p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-[#505050]" />
+                  </button>
                 </div>
               </div>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { Video, Plus } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import AttentionCards from "@/components/AttentionCards";
@@ -240,7 +241,9 @@ export default function Home() {
 
       let tasksQuery = supabase
         .from("tasks")
-        .select("*, projects(title), assignee:profiles!assignee_id(username, avatar_url)")
+        .select(
+          "*, projects(title), assignee:profiles!assignee_id(username, avatar_url)"
+        )
         .neq("status", "done")
         .order("created_at", { ascending: false })
         .limit(3);
@@ -248,9 +251,6 @@ export default function Home() {
       if (taskViewMode === "my" && user?.id) {
         tasksQuery = tasksQuery.eq("assignee_id", user.id);
       }
-
-      const { data: tasksData, error: tasksError } = await tasksQuery;
-      if (tasksError) throw tasksError;
 
       let countQuery = supabase
         .from("tasks")
@@ -260,29 +260,41 @@ export default function Home() {
         countQuery = countQuery.eq("assignee_id", user.id);
       }
 
-      const { count: activeCount } = await countQuery;
+      const projectsQuery = user?.id
+        ? supabase
+            .from("projects")
+            .select("*, project_members!inner(user_id)")
+            .eq("project_members.user_id", user.id)
+            .order("created_at", { ascending: false })
+        : null;
 
-      let projectsData: any[] = [];
-      let projectsCountData: number | null = 0;
+      const projectsCountQuery = user?.id
+        ? supabase
+            .from("projects")
+            .select("*, project_members!inner(user_id)", {
+              count: "exact",
+              head: true,
+            })
+            .eq("project_members.user_id", user.id)
+        : null;
 
-      if (user?.id) {
-        const projectsQuery = supabase
-          .from("projects")
-          .select("*, project_members!inner(user_id)")
-          .eq("project_members.user_id", user.id)
-          .order("created_at", { ascending: false });
+      const [
+        { data: tasksData, error: tasksError },
+        { count: activeCount },
+        projectsResult,
+        projectsCountResult,
+      ] = await Promise.all([
+        tasksQuery,
+        countQuery,
+        projectsQuery ?? Promise.resolve({ data: [], error: null }),
+        projectsCountQuery ?? Promise.resolve({ count: 0, error: null }),
+      ]);
 
-        const { data, error: projectsError } = await projectsQuery;
-        if (projectsError) throw projectsError;
-        projectsData = data || [];
+      if (tasksError) throw tasksError;
 
-        const { count } = await supabase
-          .from("projects")
-          .select("*, project_members!inner(user_id)", { count: "exact", head: true })
-          .eq("project_members.user_id", user.id);
-        
-        projectsCountData = count;
-      }
+      const projectsData: any[] = (projectsResult as any).data || [];
+      const projectsCountData: number | null =
+        (projectsCountResult as any).count ?? 0;
 
       const formattedTasks: Task[] = (tasksData || []).map((task: any) => ({
         id: task.id,
@@ -385,16 +397,16 @@ export default function Home() {
   const visibleTasks = tasks;
   const visibleProjects = projects;
 
+  const showInitialLoader =
+    !hasAnimated && (authLoading || (loading && !isDemoMode));
+
   return (
     <div className="min-h-screen bg-[rgba(35,36,39,1)]">
       <main
-        className="mx-auto max-w-[390px] py-4 pb-24"
-        style={{
-          paddingBottom: "calc(6rem + env(safe-area-inset-bottom))",
-        }}
+        className="mx-auto max-w-[390px] py-4 pb-[10px]"
       >
         <AnimatePresence mode="wait">
-          {(authLoading || (loading && !isDemoMode)) ? (
+          {showInitialLoader ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
@@ -498,6 +510,85 @@ export default function Home() {
                       hideHeader
                       className="mb-0"
                     />
+                  </div>
+                </section>
+
+                <section className="space-y-3 px-[18px]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-[22px] font-medium text-white">
+                        Встречи
+                      </h2>
+                      <span className="rounded-full bg-gradient-to-r from-[#9BE1FF] to-[#6CC2FF] px-2 py-0.5 text-[11px] font-bold text-black shadow-sm">
+                        СКОРО
+                      </span>
+                    </div>
+                    <span className="text-[16px] font-normal text-[#6B7280]">
+                      Все встречи
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    {/* Overlay to prevent interaction and add inactive look */}
+                    <div className="absolute inset-0 z-10 bg-[#18191B]/40 backdrop-blur-[1px] rounded-[14px]" />
+                    
+                    <div className="grid grid-cols-2 gap-3 opacity-60 pointer-events-none select-none grayscale-[0.3]">
+                      {/* Card 1 */}
+                      <div className="flex flex-col justify-between rounded-[14px] bg-[#242528] p-3 h-[140px]">
+                        <div className="flex items-start justify-between">
+                          <span className="text-[20px] font-semibold text-white">10:30</span>
+                          <div className="flex h-6 w-6 items-center justify-center rounded bg-[#4B89FF]">
+                            <Video className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                        <p className="text-[12px] leading-tight text-[#9097A7]">
+                          Брифинг с клиентом
+                          <br />
+                          «Арматурный завод»
+                        </p>
+                      </div>
+
+                      {/* Card 2 */}
+                      <div className="flex flex-col justify-between rounded-[14px] bg-[#242528] p-3 h-[140px]">
+                        <div className="flex items-start justify-between">
+                          <span className="text-[20px] font-semibold text-white">12:00</span>
+                          <div className="flex h-6 w-6 items-center justify-center rounded bg-[#2C2D30] border border-[#3E4044]">
+                            <div className="relative h-3 w-3 rounded-full border border-[#4ADE80]">
+                              <div className="absolute right-0 top-0 h-1 w-1 rounded-full bg-[#4ADE80]" />
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-[12px] leading-tight text-[#9097A7]">
+                          1:1 с джуном Машей
+                        </p>
+                      </div>
+
+                      {/* Card 3 */}
+                      <div className="flex flex-col justify-between rounded-[14px] bg-[#242528] p-3 h-[140px]">
+                        <div className="flex items-start justify-between">
+                          <span className="text-[20px] font-semibold text-white">13:00</span>
+                          <div className="flex h-6 w-6 items-center justify-center rounded bg-white">
+                            <div className="h-3 w-3 rounded bg-red-500" /> {/* Mock Google Meet logo colors roughly */}
+                            <div className="absolute h-3 w-3 rounded bg-blue-500 mix-blend-multiply opacity-50" />
+                          </div>
+                        </div>
+                        <p className="text-[12px] leading-tight text-[#9097A7]">
+                          Анна + отдел маркетинга
+                          <br />
+                          (коммуникационка)
+                        </p>
+                      </div>
+
+                      {/* Card 4 - Add Meeting */}
+                      <div className="flex flex-col items-center justify-center gap-3 rounded-[14px] border border-[#6CC2FF]/30 bg-[#242528] p-3 h-[140px]">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#6CC2FF] text-[#6CC2FF]">
+                          <Plus className="h-6 w-6" />
+                        </div>
+                        <span className="text-[12px] text-[#6CC2FF]">
+                          Добавить встречу
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </section>
 
