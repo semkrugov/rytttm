@@ -94,6 +94,7 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
@@ -281,10 +282,30 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
       });
 
       if (error) throw error;
-      router.push(`/projects/${projectId}`);
+
+      setSuccess(true);
+      haptics.success();
+
+      // Send notification
+      const assigneeId = selectedResponsibleId ?? selectedAssignees[0];
+      if (assigneeId) {
+        fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assigneeId,
+            title,
+            projectTitle: project.title,
+            creatorName: user?.username || user?.first_name || "Коллега",
+          }),
+        }).catch(err => console.error("Notification error:", err));
+      }
+
+      setTimeout(() => {
+        router.push(`/projects/${projectId}`);
+      }, 1000);
     } catch (e) {
       console.error("Error creating task:", e);
-    } finally {
       setSubmitting(false);
     }
   };
@@ -629,13 +650,15 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
         <motion.button
           type="button"
           onClick={handleSubmit}
-          disabled={!taskTitle.trim() || submitting}
-          className="w-full max-w-[390px] mx-auto flex items-center justify-center py-4 rounded-[14px] text-white font-medium text-[16px] disabled:opacity-50 disabled:cursor-not-allowed block"
-          style={{ background: "linear-gradient(90deg, #4CAF50, #45a049)" }}
+          disabled={!taskTitle.trim() || submitting || success}
+          className={`w-full max-w-[390px] mx-auto flex items-center justify-center py-4 rounded-[14px] text-white font-medium text-[16px] disabled:opacity-50 disabled:cursor-not-allowed block transition-colors duration-300 ${
+            success ? "bg-[#22C55E]" : ""
+          }`}
+          style={success ? {} : { background: "linear-gradient(90deg, #4CAF50, #45a049)" }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
-          {submitting ? "Создаём..." : "Добавить"}
+          {success ? "Добавлено" : (submitting ? "Создаём..." : "Добавить")}
         </motion.button>
       </div>
 

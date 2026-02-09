@@ -99,6 +99,7 @@ export default function AddTaskFromListClient() {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
@@ -310,7 +311,7 @@ export default function AddTaskFromListClient() {
       const title = titleTrimmed.slice(0, 200);
       const description = taskDescription.trim() || null;
 
-      const { error } = await supabase.from("tasks").insert({
+      const { data: insertedTask, error } = await supabase.from("tasks").insert({
         project_id: selectedProject.id,
         creator_id: user?.id,
         assignee_id: selectedResponsibleId ?? selectedAssignees[0] ?? null,
@@ -320,14 +321,34 @@ export default function AddTaskFromListClient() {
         priority: "medium",
         task_type: selectedType,
         deadline,
-      });
+      }).select().single();
 
       if (error) throw error;
-      router.push("/tasks");
+
+      setSuccess(true);
+      haptics.success();
+
+      // Send notification
+      const assigneeId = selectedResponsibleId ?? selectedAssignees[0];
+      if (assigneeId) {
+        fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assigneeId,
+            title,
+            projectTitle: selectedProject.title,
+            creatorName: user?.username || user?.first_name || "Коллега",
+          }),
+        }).catch(err => console.error("Notification error:", err));
+      }
+
+      setTimeout(() => {
+        router.push("/tasks");
+      }, 1000);
     } catch (e) {
       console.error("Error creating task:", e);
-    } finally {
-      setSubmitting(false);
+      setSubmitting(false); // Only reset if error, keep true if success to show "Added"
     }
   };
 
@@ -688,13 +709,15 @@ export default function AddTaskFromListClient() {
         <motion.button
           type="button"
           onClick={handleSubmit}
-          disabled={!taskTitle.trim() || !selectedProject || submitting}
-          className="w-full max-w-[390px] mx-auto flex items-center justify-center py-4 rounded-[14px] text-white font-medium text-[16px] disabled:opacity-50 disabled:cursor-not-allowed block"
-          style={{ background: "linear-gradient(90deg, #4CAF50, #45a049)" }}
+          disabled={!taskTitle.trim() || !selectedProject || submitting || success}
+          className={`w-full max-w-[390px] mx-auto flex items-center justify-center py-4 rounded-[14px] text-white font-medium text-[16px] disabled:opacity-50 disabled:cursor-not-allowed block transition-colors duration-300 ${
+            success ? "bg-[#22C55E]" : ""
+          }`}
+          style={success ? {} : { background: "linear-gradient(90deg, #4CAF50, #45a049)" }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
-          {submitting ? "Создаём..." : "Добавить"}
+          {success ? "Добавлено" : (submitting ? "Создаём..." : "Добавить")}
         </motion.button>
       </div>
 

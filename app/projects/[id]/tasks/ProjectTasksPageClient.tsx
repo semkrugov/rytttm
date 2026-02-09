@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Search, Plus } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import StatusTabs, { type TasksPageFilter } from "@/components/StatusTabs";
@@ -203,6 +203,11 @@ export default function ProjectTasksPageClient({ projectId }: ProjectTasksPageCl
     }
   };
 
+  const handleAddTask = () => {
+    haptics.medium();
+    router.push(`/projects/${projectId}/add-task`);
+  };
+
   const showSkeleton = authLoading || (loading && !isDemoMode);
 
   return (
@@ -316,6 +321,23 @@ export default function ProjectTasksPageClient({ projectId }: ProjectTasksPageCl
               )}
             </AnimatePresence>
           </div>
+
+          <motion.button
+            onClick={handleAddTask}
+            className="fixed bottom-24 right-[18px] w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-40"
+            style={{
+              background: "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
+              bottom: "calc(6rem + env(safe-area-inset-bottom))",
+            }}
+            whileTap={{ scale: 0.9 }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 30,
+            }}
+          >
+            <Plus className="w-6 h-6 text-white" strokeWidth={3} />
+          </motion.button>
         </motion.div>
       </main>
       <BottomNavigation />
