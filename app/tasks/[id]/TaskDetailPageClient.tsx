@@ -200,10 +200,6 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
     setShowEditSheet(true);
   };
 
-  const closeEditSheet = () => {
-    haptics.light();
-    setShowEditSheet(false);
-  };
 
   const handleEditPrevWeek = () => {
     haptics.light();
@@ -248,12 +244,10 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
     editDateDragX.set(0);
   };
 
-  const handleEditSave = async () => {
+  const saveChanges = async () => {
     if (!task) return;
     const titleTrimmed = editTitle.trim();
-    if (!titleTrimmed) return;
-    haptics.medium();
-    setEditSaving(true);
+    if (!titleTrimmed) return; // Cannot save empty title
 
     const deadline = editNoDeadline
       ? null
@@ -280,8 +274,6 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
             }
           : null
       );
-      closeEditSheet();
-      setEditSaving(false);
       return;
     }
 
@@ -299,13 +291,25 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
         })
         .eq("id", taskId);
       if (error) throw error;
-      closeEditSheet();
       loadTask();
     } catch (e) {
       console.error("Error updating task:", e);
-    } finally {
-      setEditSaving(false);
     }
+  };
+
+  const handleEditSave = async () => {
+    haptics.medium();
+    setEditSaving(true);
+    await saveChanges();
+    setEditSaving(false);
+    setShowEditSheet(false);
+  };
+
+  const closeEditSheet = () => {
+    haptics.light();
+    // Auto-save on close
+    saveChanges(); 
+    setShowEditSheet(false);
   };
 
   const isTrackingThisTask = activeTaskId === taskId;
@@ -1021,6 +1025,136 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                 >
                   {editSaving ? "Сохранение..." : "Сохранить"}
                 </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Выбор участника */}
+      <AnimatePresence>
+        {showMemberPicker && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/60 z-[60]"
+              onClick={() => {
+                haptics.light();
+                setShowMemberPicker(false);
+              }}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed bottom-0 left-0 right-0 z-[60] bg-[#1E1F22] rounded-t-[20px] max-h-[70vh] overflow-hidden flex flex-col"
+              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+            >
+              <div className="flex items-center justify-between px-4 py-4 border-b border-[#28292D] flex-shrink-0">
+                <h3 className="text-white font-semibold text-[18px]">
+                  {pickerMode === "assignee" ? "Выберите исполнителя" : "Выберите ответственного"}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.light();
+                    setShowMemberPicker(false);
+                  }}
+                  className="w-10 h-10 rounded-full bg-[#28292D] flex items-center justify-center active:opacity-80"
+                >
+                  <X className="w-5 h-5 text-[#9097A7]" strokeWidth={2} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                <div className="space-y-1 mt-2">
+                  {members.map((member) => {
+                    const profile = Array.isArray(member.profiles)
+                      ? member.profiles[0]
+                      : member.profiles;
+                    const isSelected =
+                      pickerMode === "assignee"
+                        ? editAssigneeId === member.user_id
+                        : editCreatorId === member.user_id;
+
+                    return (
+                      <button
+                        key={member.user_id}
+                        type="button"
+                        onClick={() => {
+                          haptics.selection();
+                          if (pickerMode === "assignee") {
+                            setEditAssigneeId(member.user_id);
+                          } else {
+                            setEditCreatorId(member.user_id);
+                          }
+                          setShowMemberPicker(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-[12px] transition-colors ${
+                          isSelected ? "bg-[#28292D]" : "active:bg-[#28292D]"
+                        }`}
+                      >
+                        {profile?.avatar_url ? (
+                          <img
+                            src={profile.avatar_url}
+                            alt=""
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium ${
+                            pickerMode === "assignee" ? "bg-[#3B82F6]" : "bg-[#F97316]"
+                          }`}>
+                            {(profile?.username || "?")[0]?.toUpperCase()}
+                          </div>
+                        )}
+                        <div className="flex-1 text-left">
+                          <p className="text-white font-medium text-[15px]">
+                            {profile?.username || "Без имени"}
+                          </p>
+                          <p className="text-[#9097A7] text-[13px]">
+                            {profile?.position || "Участник"}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-5 h-5 text-[#3B82F6]" strokeWidth={2.5} />
+                        )}
+                      </button>
+                    );
+                  })}
+
+                  {members.length === 0 && (
+                    <div className="text-center py-8 text-[#9097A7]">
+                      Нет участников в проекте
+                    </div>
+                  )}
+                  
+                  {/* Кнопка сброса (не назначен) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      if (pickerMode === "assignee") {
+                        setEditAssigneeId(null);
+                      } else {
+                        setEditCreatorId(null);
+                      }
+                      setShowMemberPicker(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-[12px] active:bg-[#28292D] transition-colors mt-2 border-t border-[#28292D]"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-[#28292D] flex items-center justify-center text-[#9097A7]">
+                      <X className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-[#9097A7] font-medium text-[15px]">
+                        Не назначен
+                      </p>
+                    </div>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>

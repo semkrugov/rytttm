@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect, useRef, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
@@ -54,6 +54,7 @@ let cachedTasks: Task[] | null = null;
 
 function TasksContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project") ?? undefined;
   const { t } = useLanguage();
@@ -72,7 +73,7 @@ function TasksContent() {
       setTasks(demoTasks);
       setLoading(false);
     }
-  }, [authLoading, user?.id, t]);
+  }, [authLoading, user?.id, t, pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -226,6 +227,27 @@ function TasksContent() {
     }
   };
 
+  const handleDeleteTask = async (taskId: string) => {
+    setUpdating(taskId);
+    
+    // Optimistic UI for demo
+    if (taskId.startsWith("demo-")) {
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      setUpdating(null);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+      if (error) throw error;
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   const handleAddTask = () => {
     haptics.medium();
     router.push("/tasks/add");
@@ -307,6 +329,7 @@ function TasksContent() {
                               task={task}
                               isLast={index === filteredTasks.length - 1}
                               onStatusChange={handleStatusChange}
+                              onDelete={handleDeleteTask}
                             />
                           ))}
                         </AnimatePresence>

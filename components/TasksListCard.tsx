@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, PanInfo, useMotionValue, useTransform, animate } from "framer-motion";
-import { Calendar, Play, Check, Flame, MessageSquare, Hourglass, Bug, Lightbulb } from "lucide-react";
+import { Calendar, Play, Check, X, Flame, MessageSquare, Hourglass, Bug, Lightbulb, ArrowLeft } from "lucide-react";
 import { Task, TaskStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import { animationVariants } from "@/lib/animations";
@@ -20,6 +20,7 @@ interface TasksListCardProps {
   task: Task;
   isLast: boolean;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
+  onDelete?: (taskId: string) => void;
 }
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; bgColor: string; textColor: string }> = {
@@ -75,6 +76,7 @@ export default function TasksListCard({
   task,
   isLast,
   onStatusChange,
+  onDelete,
 }: TasksListCardProps) {
   const router = useRouter();
   const hasAnimated = useHasAnimated();
@@ -82,6 +84,8 @@ export default function TasksListCard({
   const [isSwiped, setIsSwiped] = useState(false);
   const x = useMotionValue(0);
   const bubbleScale = useTransform(x, [0, -80], [0, 1], { clamp: true });
+
+  const isDone = task.status === "done";
 
   const isTimerActive = activeTaskId === task.id;
   const displayTime = isTimerActive
@@ -129,10 +133,13 @@ export default function TasksListCard({
         },
       }}
     >
-      {/* Зеленый бабл "Done" справа под карточкой */}
+      {/* Бабл действия справа под карточкой */}
       <motion.button
         type="button"
-        className="absolute inset-y-0 right-0 w-[80px] rounded-[14px] bg-[#22C55E] flex items-center justify-center shadow-lg z-0"
+        className={cn(
+          "absolute inset-y-0 right-0 w-[80px] rounded-[14px] flex items-center justify-center shadow-lg z-0",
+          isDone ? "bg-[#3B82F6]" : "bg-[#22C55E]"
+        )}
         style={{ scale: bubbleScale }}
         transition={{
           ...animationVariants.spring,
@@ -141,10 +148,18 @@ export default function TasksListCard({
         }}
         onTap={(event) => {
           event.stopPropagation();
-          onStatusChange(task.id, "done");
+          if (isDone) {
+            onStatusChange(task.id, "todo");
+          } else {
+            onStatusChange(task.id, "done");
+          }
         }}
       >
-        <Check className="w-7 h-7 text-white" strokeWidth={3} />
+        {isDone ? (
+          <ArrowLeft className="w-7 h-7 text-white" strokeWidth={3} />
+        ) : (
+          <Check className="w-7 h-7 text-white" strokeWidth={3} />
+        )}
       </motion.button>
 
       {/* Свайп-карточка */}
