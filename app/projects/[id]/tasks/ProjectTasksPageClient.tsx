@@ -220,7 +220,7 @@ export default function ProjectTasksPageClient({ projectId }: ProjectTasksPageCl
           initial={false}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-[18px]"
         >
           <AppHeader
             leftSlot={
