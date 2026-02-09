@@ -243,7 +243,7 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
 
   const handleSubmit = async () => {
     const titleTrimmed = taskTitle.trim();
-    if (!titleTrimmed) return;
+    if (!titleTrimmed || !project) return;
     haptics.medium();
     setSubmitting(true);
 
