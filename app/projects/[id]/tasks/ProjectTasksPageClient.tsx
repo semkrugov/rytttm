@@ -262,7 +262,7 @@ export default function ProjectTasksPageClient({ projectId }: ProjectTasksPageCl
               />
             </div>
 
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="sync">
               {showSkeleton ? (
                 <motion.div
                   key="loading"

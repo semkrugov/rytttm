@@ -18,6 +18,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { haptics } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 const BOT_INVITE_URL =
   typeof process !== "undefined" && process.env.NEXT_PUBLIC_BOT_INVITE_URL
@@ -63,6 +64,7 @@ const FOLDERS: { id: string; labelKey: string; icon: React.ComponentType<{ class
 export default function ContactsPageClient() {
   const router = useRouter();
   const { t } = useLanguage();
+  const hasAnimated = useHasAnimated();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredContacts = useMemo(() => {
@@ -118,9 +120,11 @@ export default function ContactsPageClient() {
         />
 
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={hasAnimated ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
+          transition={
+            hasAnimated ? { duration: 0 } : { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
+          }
           className="pt-2"
         >
           <h1 className="text-[22px] font-bold text-white mb-4">{t("contacts.title")}</h1>

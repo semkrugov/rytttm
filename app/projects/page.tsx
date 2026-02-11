@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { haptics } from "@/lib/telegram";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 import { cn } from "@/lib/utils";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 const ARCHIVE_REVEAL = 72;
 const SWIPE_THRESHOLD = 48;
@@ -114,23 +115,78 @@ function ProjectCardSwipe({
 }
 
 let cachedProjects: Project[] | null = null;
+let cachedProjectsUserId: string | null = null;
+
+type CachedProjectsPayload = {
+  userId: string;
+  projects: Project[];
+};
+
+const PROJECTS_CACHE_KEY = "projects_page_cache_v1";
+
+function readProjectsCacheForUser(userId: string): Project[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(PROJECTS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedProjectsPayload;
+    if (parsed.userId !== userId || !Array.isArray(parsed.projects)) return null;
+    return parsed.projects;
+  } catch {
+    return null;
+  }
+}
+
+function writeProjectsCacheForUser(userId: string, projects: Project[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(
+      PROJECTS_CACHE_KEY,
+      JSON.stringify({
+        userId,
+        projects,
+      } as CachedProjectsPayload)
+    );
+  } catch {
+    // Ignore storage failures.
+  }
+}
 
 export default function ProjectsPage() {
   const router = useRouter();
   const { user, loading: authLoading, isDemoMode } = useTelegramAuth();
+  const hasAnimated = useHasAnimated();
   const [projects, setProjects] = useState<Project[]>(cachedProjects || []);
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(!cachedProjects);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(cachedProjects));
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<ProjectsTab>("all");
 
   useEffect(() => {
     if (authLoading) return;
     if (user) {
-      loadProjects(Boolean(cachedProjects));
+      if (cachedProjectsUserId !== user.id) {
+        cachedProjects = null;
+        cachedProjectsUserId = user.id;
+      }
+
+      const storedProjects = readProjectsCacheForUser(user.id);
+      const inMemoryProjects = cachedProjects || [];
+      const fastProjects = inMemoryProjects.length > 0 ? inMemoryProjects : storedProjects || [];
+
+      if (fastProjects.length > 0) {
+        if (!cachedProjects) cachedProjects = fastProjects;
+        setProjects(fastProjects);
+        setLoading(false);
+        setHasLoadedOnce(true);
+      }
+
+      loadProjects(fastProjects.length > 0);
     } else {
       setProjects(demoProjects);
       setLoading(false);
+      setHasLoadedOnce(true);
     }
   }, [authLoading, user?.id]);
 
@@ -160,11 +216,14 @@ export default function ProjectsPage() {
       });
 
       cachedProjects = list;
+      cachedProjectsUserId = user.id;
+      writeProjectsCacheForUser(user.id, list);
       setProjects(list);
     } catch (e) {
       console.error("Error loading projects:", e);
     } finally {
       setLoading(false);
+      setHasLoadedOnce(true);
     }
   };
 
@@ -187,7 +246,9 @@ export default function ProjectsPage() {
     setActiveTab(tab);
   };
 
-  const showSkeleton = authLoading || (loading && !isDemoMode);
+  const showSkeleton =
+    authLoading ||
+    (!isDemoMode && (!hasLoadedOnce || (loading && projects.length === 0)));
 
   const q = searchQuery.trim().toLowerCase();
   const filteredBySearch = projects.filter(
@@ -206,9 +267,11 @@ export default function ProjectsPage() {
         }}
       >
         <motion.div
-          initial={false}
+          initial={hasAnimated ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
+          transition={
+            hasAnimated ? { duration: 0 } : { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
+          }
           className="flex flex-col gap-4 px-[18px]"
         >
           <AppHeader />
@@ -263,7 +326,7 @@ export default function ProjectsPage() {
           </div>
 
           {/* Список проектов */}
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="sync">
             {showSkeleton ? (
               <motion.div
                 key="loading"
@@ -308,7 +371,7 @@ export default function ProjectsPage() {
                       />
                     ))}
                   </div>
-                ) : (
+                ) : hasLoadedOnce ? (
                   <div className="rounded-xl p-8 text-center">
                     <p className="text-sm text-[#9097A7]">
                       {activeTab === "archive"
@@ -318,6 +381,8 @@ export default function ProjectsPage() {
                           : "Ты пока не состоишь ни в одном проекте. Напиши что-нибудь в чат с ботом, чтобы проект появился здесь."}
                     </p>
                   </div>
+                ) : (
+                  <div className="h-28" />
                 )}
               </motion.div>
             )}

@@ -16,6 +16,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/telegram";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 const demoTasks: Task[] = [
   {
@@ -51,6 +52,42 @@ const demoTasks: Task[] = [
 ];
 
 let cachedTasks: Task[] | null = null;
+let cachedTasksUserId: string | null = null;
+
+type CachedTasksPayload = {
+  userId: string;
+  tasks: Task[];
+};
+
+const TASKS_CACHE_KEY = "tasks_page_cache_v1";
+
+function readTasksCacheForUser(userId: string): Task[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(TASKS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedTasksPayload;
+    if (parsed.userId !== userId || !Array.isArray(parsed.tasks)) return null;
+    return parsed.tasks;
+  } catch {
+    return null;
+  }
+}
+
+function writeTasksCacheForUser(userId: string, tasks: Task[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(
+      TASKS_CACHE_KEY,
+      JSON.stringify({
+        userId,
+        tasks,
+      } as CachedTasksPayload)
+    );
+  } catch {
+    // Ignore storage quota errors.
+  }
+}
 
 function TasksContent() {
   const router = useRouter();
@@ -58,6 +95,7 @@ function TasksContent() {
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project") ?? undefined;
   const { t } = useLanguage();
+  const hasAnimated = useHasAnimated();
   const { user, loading: authLoading, isDemoMode } = useTelegramAuth();
   const [activeFilter, setActiveFilter] = useState<TasksPageFilter>("all");
   const [tasks, setTasks] = useState<Task[]>(cachedTasks || []);
@@ -68,7 +106,22 @@ function TasksContent() {
   useEffect(() => {
     if (authLoading) return;
     if (user) {
-      loadTasks(Boolean(cachedTasks));
+      if (cachedTasksUserId !== user.id) {
+        cachedTasks = null;
+        cachedTasksUserId = user.id;
+      }
+
+      const storedTasks = readTasksCacheForUser(user.id);
+      const inMemoryTasks = cachedTasks || [];
+      const fastTasks = inMemoryTasks.length > 0 ? inMemoryTasks : storedTasks || [];
+
+      if (fastTasks.length > 0) {
+        if (!cachedTasks) cachedTasks = fastTasks;
+        setTasks(fastTasks);
+        setLoading(false);
+      }
+
+      loadTasks(fastTasks.length > 0);
     } else {
       setTasks(demoTasks);
       setLoading(false);
@@ -153,6 +206,8 @@ function TasksContent() {
       }));
 
       cachedTasks = formattedTasks;
+      cachedTasksUserId = user.id;
+      writeTasksCacheForUser(user.id, formattedTasks);
       setTasks(formattedTasks);
     } catch (error) {
       console.error("Error loading tasks:", error);
@@ -253,7 +308,7 @@ function TasksContent() {
     router.push("/tasks/add");
   };
 
-  const showSkeleton = authLoading || (loading && !isDemoMode);
+  const showSkeleton = authLoading || (!isDemoMode && loading && tasks.length === 0);
 
   return (
     <div className="min-h-screen bg-[rgba(35,36,39,1)]">
@@ -264,10 +319,10 @@ function TasksContent() {
         }}
       >
         <motion.div
-          initial={false}
+          initial={hasAnimated ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={
-            { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
+            hasAnimated ? { duration: 0 } : { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
           }
           className="flex flex-col gap-[18px]"
         >
@@ -287,7 +342,7 @@ function TasksContent() {
                 />
               </div>
 
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="sync">
                 {showSkeleton ? (
                   <motion.div
                     key="loading"

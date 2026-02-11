@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { LayoutDashboard, CheckSquare, FolderOpen, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -27,11 +28,20 @@ export default function BottomNavigation() {
   const { t } = useLanguage();
 
   const handleTabClick = (path: string) => {
+    if (pathname === path) return;
     if (typeof window !== "undefined") {
       haptics.light();
     }
     router.push(path);
   };
+
+  useEffect(() => {
+    tabs.forEach((tab) => {
+      if (tab.path !== pathname) {
+        router.prefetch(tab.path);
+      }
+    });
+  }, [pathname, router]);
 
   const getActiveTab = () => {
     if (pathname === "/") return "widget";

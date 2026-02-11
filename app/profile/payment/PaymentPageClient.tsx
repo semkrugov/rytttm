@@ -24,6 +24,7 @@ import { haptics } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useTelegramAuth } from "@/hooks/useTelegramAuth";
+import { useHasAnimated } from "@/hooks/useHasAnimated";
 
 type PaymentMethod = "card" | "phone" | "wallet";
 
@@ -65,6 +66,7 @@ const REFERRAL_URL = "https://rytttm.com/van_tolk";
 export default function PaymentPageClient() {
   const router = useRouter();
   const { t } = useLanguage();
+  const hasAnimated = useHasAnimated();
   const { user, isDemoMode } = useTelegramAuth();
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [autoPay, setAutoPay] = useState(false);
@@ -212,9 +214,11 @@ export default function PaymentPageClient() {
         />
 
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={hasAnimated ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
+          transition={
+            hasAnimated ? { duration: 0 } : { duration: 0.3, ease: [0.19, 1, 0.22, 1] }
+          }
           className="pt-2"
         >
           <div className="flex items-center justify-between mb-6">
