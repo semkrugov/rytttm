@@ -397,8 +397,7 @@ export default function Home() {
   const visibleTasks = tasks;
   const visibleProjects = projects;
 
-  const showInitialLoader =
-    !hasAnimated && (authLoading || (loading && !isDemoMode));
+  const showInitialLoader = authLoading || (loading && !isDemoMode);
 
   return (
     <div className="min-h-screen bg-[rgba(35,36,39,1)]">

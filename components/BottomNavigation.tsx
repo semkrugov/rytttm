@@ -82,7 +82,7 @@ export default function BottomNavigation() {
                 className={cn(
                   "relative flex-1 h-full flex items-center justify-center"
                 )}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ opacity: 0.95 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 {isActive && (
@@ -92,8 +92,8 @@ export default function BottomNavigation() {
                     initial={false}
                     transition={{
                       type: "spring",
-                      stiffness: 300,
-                      damping: 30,
+                      stiffness: 360,
+                      damping: 34,
                     }}
                   />
                 )}

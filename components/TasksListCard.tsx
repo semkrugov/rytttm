@@ -22,6 +22,7 @@ interface TasksListCardProps {
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
   onDelete?: (taskId: string) => void;
   variant?: "card" | "list";
+  disableArrivalAnimation?: boolean;
 }
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; bgColor: string; textColor: string }> = {
@@ -79,6 +80,7 @@ export default function TasksListCard({
   onStatusChange,
   onDelete,
   variant = "card",
+  disableArrivalAnimation = false,
 }: TasksListCardProps) {
   const router = useRouter();
   const hasAnimated = useHasAnimated();
@@ -122,19 +124,23 @@ export default function TasksListCard({
 
   return (
     <motion.div
-      layout="position"
+      layout={disableArrivalAnimation ? undefined : "position"}
       className={cn(
         "relative w-full",
         variant === "card" && !isLast && "mb-3",
         variant === "list" && "mb-0"
       )}
-      transition={{
-        layout: {
-          ...animationVariants.spring,
-          duration: animationVariants.duration.medium,
-          ease: animationVariants.easing["ease-out-expo"],
-        },
-      }}
+      transition={
+        disableArrivalAnimation
+          ? { duration: 0 }
+          : {
+              layout: {
+                ...animationVariants.spring,
+                duration: animationVariants.duration.medium,
+                ease: animationVariants.easing["ease-out-expo"],
+              },
+            }
+      }
     >
       {/* Бабл действия справа под карточкой */}
       <motion.button
@@ -174,9 +180,11 @@ export default function TasksListCard({
         dragElastic={0.15}
         onDragEnd={handleDragEnd}
         initial={
-          hasAnimated
+          disableArrivalAnimation
             ? false
-            : { opacity: 0, y: 8, scale: 0.98 }
+            : hasAnimated
+              ? false
+              : { opacity: 0, y: 8, scale: 0.98 }
         }
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{

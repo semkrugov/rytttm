@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -19,6 +19,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { haptics } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 import { useHasAnimated } from "@/hooks/useHasAnimated";
+import { supabase } from "@/lib/supabase";
+import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 
 const BOT_INVITE_URL =
   typeof process !== "undefined" && process.env.NEXT_PUBLIC_BOT_INVITE_URL
@@ -54,6 +56,19 @@ const DEMO_CONTACTS: Contact[] = [
   },
 ];
 
+const AVATAR_GRADIENTS = [
+  "from-[#9BE1FF] to-[#6CC2FF]",
+  "from-[#FACC15] to-[#EAB308]",
+  "from-[#BE87D8] to-[#9B6BB8]",
+  "from-[#34D399] to-[#10B981]",
+  "from-[#FCA5A5] to-[#F87171]",
+];
+
+function getAvatarGradient(seed: string): string {
+  const sum = seed.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return AVATAR_GRADIENTS[sum % AVATAR_GRADIENTS.length];
+}
+
 const FOLDERS: { id: string; labelKey: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "designers", labelKey: "contacts.designers", icon: Palette },
   { id: "coders", labelKey: "contacts.coders", icon: Monitor },
@@ -65,13 +80,96 @@ export default function ContactsPageClient() {
   const router = useRouter();
   const { t } = useLanguage();
   const hasAnimated = useHasAnimated();
+  const { user, isDemoMode } = useTelegramAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [contacts, setContacts] = useState<Contact[]>(DEMO_CONTACTS);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadContactsFromSharedChats = async () => {
+      if (isDemoMode || !user?.id) {
+        if (!cancelled) {
+          setContacts(DEMO_CONTACTS);
+        }
+        return;
+      }
+
+      try {
+        const { data: myMemberships, error: membershipsError } = await supabase
+          .from("project_members")
+          .select("project_id")
+          .eq("user_id", user.id);
+
+        if (membershipsError) throw membershipsError;
+
+        const projectIds = Array.from(
+          new Set((myMemberships || []).map((row: { project_id: string }) => row.project_id))
+        );
+
+        if (projectIds.length === 0) {
+          if (!cancelled) setContacts([]);
+          return;
+        }
+
+        const { data: sharedMembers, error: sharedMembersError } = await supabase
+          .from("project_members")
+          .select("user_id, profiles(username, avatar_url)")
+          .in("project_id", projectIds)
+          .neq("user_id", user.id);
+
+        if (sharedMembersError) throw sharedMembersError;
+
+        const uniqueContacts = new Map<string, Contact>();
+        (sharedMembers || []).forEach(
+          (row: {
+            user_id: string;
+            profiles?:
+              | { username: string | null; avatar_url: string | null }
+              | Array<{ username: string | null; avatar_url: string | null }>
+              | null;
+          }) => {
+            if (uniqueContacts.has(row.user_id)) return;
+            const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+            const username = profile?.username || "User";
+            uniqueContacts.set(row.user_id, {
+              id: row.user_id,
+              username,
+              avatarUrl: profile?.avatar_url || null,
+              initial: username.charAt(0),
+              online: false,
+              avatarGradient: getAvatarGradient(row.user_id),
+            });
+          }
+        );
+
+        if (!cancelled) {
+          setContacts(
+            Array.from(uniqueContacts.values()).sort((a, b) =>
+              a.username.localeCompare(b.username)
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load contacts:", error);
+        if (!cancelled) {
+          setContacts([]);
+        }
+      }
+    };
+
+    void loadContactsFromSharedChats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoMode, user?.id]);
 
   const filteredContacts = useMemo(() => {
-    if (!searchQuery.trim()) return DEMO_CONTACTS;
+    if (!searchQuery.trim()) return contacts;
     const q = searchQuery.trim().toLowerCase();
-    return DEMO_CONTACTS.filter((c) => c.username.toLowerCase().includes(q));
-  }, [searchQuery]);
+    return contacts.filter((c) => c.username.toLowerCase().includes(q));
+  }, [searchQuery, contacts]);
 
   const shareInviteLink = async () => {
     const shareText = "Присоединяйся к rytttm в Telegram";
@@ -189,6 +287,11 @@ export default function ContactsPageClient() {
                 <span className="text-[15px] font-medium text-white truncate">{contact.username}</span>
               </button>
             ))}
+            {filteredContacts.length === 0 && (
+              <div className="px-4 py-5 text-sm text-[#9097A7]">
+                Контактов пока нет
+              </div>
+            )}
           </div>
 
           {/* Папки */}

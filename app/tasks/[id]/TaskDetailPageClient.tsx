@@ -546,7 +546,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
       />
 
       <main
-        className="mx-auto max-w-[390px] px-[18px] pb-24"
+        className="mx-auto max-w-[390px] px-[18px] pt-[18px] pb-24"
         style={{ paddingBottom: "calc(6rem + env(safe-area-inset-bottom))" }}
       >
         {/* Дата и время дедлайна */}

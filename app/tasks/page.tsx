@@ -385,6 +385,7 @@ function TasksContent() {
                               isLast={index === filteredTasks.length - 1}
                               onStatusChange={handleStatusChange}
                               onDelete={handleDeleteTask}
+                              disableArrivalAnimation
                             />
                           ))}
                         </AnimatePresence>
