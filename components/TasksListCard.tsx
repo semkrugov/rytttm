@@ -21,6 +21,7 @@ interface TasksListCardProps {
   isLast: boolean;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
   onDelete?: (taskId: string) => void;
+  variant?: "card" | "list";
 }
 
 const STATUS_CONFIG: Record<TaskStatus, { label: string; bgColor: string; textColor: string }> = {
@@ -77,6 +78,7 @@ export default function TasksListCard({
   isLast,
   onStatusChange,
   onDelete,
+  variant = "card",
 }: TasksListCardProps) {
   const router = useRouter();
   const hasAnimated = useHasAnimated();
@@ -123,7 +125,8 @@ export default function TasksListCard({
       layout="position"
       className={cn(
         "relative w-full",
-        !isLast && "mb-3"
+        variant === "card" && !isLast && "mb-3",
+        variant === "list" && "mb-0"
       )}
       transition={{
         layout: {
@@ -137,7 +140,8 @@ export default function TasksListCard({
       <motion.button
         type="button"
         className={cn(
-          "absolute inset-y-0 right-0 w-[80px] rounded-[14px] flex items-center justify-center shadow-lg z-0",
+          "absolute inset-y-0 right-0 w-[80px] flex items-center justify-center shadow-lg z-0",
+          variant === "card" && "rounded-[14px]",
           isDone ? "bg-[#3B82F6]" : "bg-[#22C55E]"
         )}
         style={{ scale: bubbleScale }}
@@ -198,7 +202,9 @@ export default function TasksListCard({
           }
         }}
         className={cn(
-          "relative rounded-[10px] bg-[#1E1E1E] p-[18px] cursor-pointer w-full z-10",
+          "relative bg-[#1E1E1E] p-[18px] cursor-pointer w-full z-10",
+          variant === "card" && "rounded-[10px]",
+          variant === "list" && !isLast && "border-b border-[#28292D]",
           task.completed && "opacity-60"
         )}
       >

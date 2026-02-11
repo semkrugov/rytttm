@@ -122,7 +122,7 @@ export default function AttentionCards({
             type="button"
             onClick={handleAcceptAll}
             disabled={isDismissing}
-            className="text-[16px] font-normal text-[#6CC2FF] active:opacity-80 disabled:opacity-50 transition-opacity"
+            className="text-[14px] font-normal text-[#6CC2FF] active:opacity-80 disabled:opacity-50 transition-opacity"
           >
             Принять всё
           </button>

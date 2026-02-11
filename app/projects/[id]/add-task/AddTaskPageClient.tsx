@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useMotionValue, PanInfo } from "framer-motion";
 import {
@@ -56,7 +56,7 @@ const MONTH_NAMES = [
   "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
 ];
 
-const DAYS_RANGE = 90; // ±90 дней — непрерывный календарь
+const DAYS_RANGE = 365; // ±365 дней — непрерывный календарь
 
 function getDatesAround(centerOffset = 0) {
   const dates: { date: Date; day: number; weekday: string }[] = [];
@@ -120,7 +120,7 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
     { id: 'idea', icon: Lightbulb, color: '#EAB308' },
   ] as const;
 
-  const dateOptions = getDatesAround(dateOffset);
+  const dateOptions = useMemo(() => getDatesAround(0), []);
   const dateDragX = useMotionValue(0);
 
   const responsibleMember = members.find((m) => m.user_id === selectedResponsibleId);
@@ -339,9 +339,9 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
         leftSlot={
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center"
+            className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center active:opacity-80 transition-opacity"
           >
-            <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} />
+            <ArrowLeft className="w-5 h-5 text-[#151617]" strokeWidth={2} />
           </button>
         }
       />
@@ -504,7 +504,7 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0.2}
                   onDragEnd={handleDateDragEnd}
-                  animate={{ x: -dateOffset * 56 }}
+                  animate={{ x: -(DAYS_RANGE + dateOffset) * 56 }}
                   style={{ x: dateDragX }}
                   transition={{
                     type: "spring",
@@ -530,7 +530,7 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
                         }}
                         whileTap={{ scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                        className={`flex-shrink-0 flex flex-col items-center py-2 px-3 rounded-[10px] min-w-[48px] transition-colors duration-200 ${
+                        className={`flex-shrink-0 flex flex-col items-center py-2 px-3 rounded-[14px] min-w-[48px] transition-colors duration-200 ${
                           isSelected ? "bg-[#BE87D8] text-white" : "bg-[#28292D] text-[#9097A7]"
                         }`}
                       >
@@ -570,7 +570,7 @@ export default function AddTaskPageClient({ projectId }: AddTaskPageClientProps)
                   setSelectedTime({ hour: h, minute: m });
                 }}
                 disabled={noDeadline}
-                className="px-3 py-2 rounded-[10px] bg-[#28292D] text-white text-[14px] outline-none disabled:opacity-50"
+                className="px-3 py-2 rounded-[14px] bg-[#28292D] text-white text-[14px] outline-none disabled:opacity-50"
               />
               <label className="flex items-center gap-2 cursor-pointer ml-auto">
                 <input

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, MessageCircle } from "lucide-react";
+import { Search, MessageCircle } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import { Project } from "@/types";
@@ -182,11 +182,6 @@ export default function ProjectsPage() {
     // TODO: в проде — обновить проект в Supabase (archived: true/false)
   };
 
-  const handleAddProject = () => {
-    haptics.medium();
-    // TODO: открыть создание проекта или модал
-  };
-
   const handleTabClick = (tab: ProjectsTab) => {
     haptics.light();
     setActiveTab(tab);
@@ -234,7 +229,7 @@ export default function ProjectsPage() {
           </div>
 
           {/* Табы Все / Архив */}
-          <div className="flex w-full h-11 rounded-[10px] p-[3px] relative bg-[#1E1F22]">
+          <div className="flex w-full h-11 rounded-[14px] p-[3px] relative bg-[#1E1F22]">
             {(["all", "archive"] as const).map((tab) => {
               const isActive = activeTab === tab;
               const label = tab === "all" ? "Все" : "Архив";
@@ -244,7 +239,7 @@ export default function ProjectsPage() {
                   type="button"
                   onClick={() => handleTabClick(tab)}
                   className={cn(
-                    "relative flex-1 h-full rounded-[8px] text-[14px] font-medium transition-colors z-10",
+                    "relative flex-1 h-full rounded-[12px] text-[14px] font-medium transition-colors z-10",
                     isActive ? "text-white" : "text-[#9097A7]"
                   )}
                   whileTap={{ scale: 0.98 }}
@@ -254,7 +249,7 @@ export default function ProjectsPage() {
                   {isActive && (
                     <motion.div
                       layoutId="activeProjectsTab"
-                      className="absolute inset-0 rounded-[8px] -z-10"
+                      className="absolute inset-0 rounded-[12px] -z-10"
                       style={{
                         background: "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
                       }}
@@ -329,22 +324,6 @@ export default function ProjectsPage() {
           </AnimatePresence>
         </motion.div>
 
-        <motion.button
-          onClick={handleAddProject}
-          className="fixed bottom-24 right-[18px] w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-40"
-          style={{
-            background: "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
-            bottom: "calc(6rem + env(safe-area-inset-bottom))",
-          }}
-          whileTap={{ scale: 0.9 }}
-          transition={{
-            type: "spring",
-            stiffness: 300,
-            damping: 30,
-          }}
-        >
-          <Plus className="w-6 h-6 text-white" strokeWidth={3} />
-        </motion.button>
       </main>
 
       <BottomNavigation />

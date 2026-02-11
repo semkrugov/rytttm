@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import WebApp from "@twa-dev/sdk";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -224,7 +225,46 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
 
   const handleAddParticipant = () => {
     haptics.light();
-    // TODO: открыть модал/экран добавления участника
+
+    const openShareUrl = (shareUrl: string) => {
+      if (typeof window === "undefined") return;
+
+      if (WebApp?.openTelegramLink) {
+        WebApp.openTelegramLink(shareUrl);
+        return;
+      }
+
+      window.open(shareUrl, "_blank", "noopener,noreferrer");
+    };
+
+    const fallbackShareUrl = "https://t.me/share/url?url=https%3A%2F%2Ft.me%2Frytttm_bot";
+
+    if (!user?.id || projectId.startsWith("demo-")) {
+      openShareUrl(fallbackShareUrl);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectId}/invite`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ requesterId: user.id }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Invite API failed: ${response.status}`);
+        }
+
+        const data = (await response.json()) as { shareUrl?: string };
+        openShareUrl(data.shareUrl || fallbackShareUrl);
+      } catch (error) {
+        console.error("Failed to generate invite link:", error);
+        openShareUrl(fallbackShareUrl);
+      }
+    })();
   };
 
   const handleAddTask = () => {
@@ -252,9 +292,9 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
           leftSlot={
             <button
               onClick={() => router.push("/")}
-              className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center"
+              className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center active:opacity-80 transition-opacity"
             >
-              <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} />
+              <ArrowLeft className="w-5 h-5 text-[#151617]" strokeWidth={2} />
             </button>
           }
         />
@@ -306,9 +346,9 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
         leftSlot={
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center"
+            className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center active:opacity-80 transition-opacity"
           >
-            <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} />
+            <ArrowLeft className="w-5 h-5 text-[#151617]" strokeWidth={2} />
           </button>
         }
       />
@@ -375,7 +415,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
                 <div className="w-10 h-10 rounded-full bg-[#3B82F6]/20 flex items-center justify-center flex-shrink-0">
                   <UserPlus className="w-5 h-5 text-[#3B82F6]" strokeWidth={2} />
                 </div>
-                <span className="text-[#3B82F6] font-medium">Добавить участника</span>
+                <span className="text-[#3B82F6] font-medium">Пригласить участника</span>
               </button>
             </div>
           </div>
@@ -390,7 +430,7 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
                 className="flex items-center gap-2 text-[#3B82F6]"
                 onClick={() => haptics.light()}
               >
-                <span className="font-medium text-[#3B82F6]">Все задачи</span>
+                <span className="font-medium text-[#3B82F6] text-[14px]">Все задачи</span>
               </Link>
           </div>
 
@@ -411,20 +451,21 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
                 variants={hasAnimated ? undefined : animationVariants.staggerContainer}
                 initial={hasAnimated ? false : "initial"}
                 animate={hasAnimated ? false : "animate"}
-                className="space-y-2"
+                className="rounded-[14px] bg-[#1E1F22] overflow-hidden"
               >
                 {tasks.map((task, index) => (
                   <motion.div
                     key={task.id}
                     variants={hasAnimated ? undefined : animationVariants.staggerItem}
+                    className={cn(
+                      index !== tasks.length - 1 && "border-b border-[#28292D]"
+                    )}
                   >
-                    <Link href={`/tasks/${task.id}`}>
-                      <div
-                        className={cn(
-                          "rounded-[14px] bg-[#1E1F22] overflow-hidden px-4 py-3",
-                          "active:opacity-90 transition-opacity"
-                        )}
-                      >
+                    <Link
+                      href={`/tasks/${task.id}`}
+                      className="block px-4 py-3 active:opacity-90 transition-opacity"
+                    >
+                      <div>
                         <div
                           className={cn(
                             "flex items-center gap-2 text-sm mb-1",

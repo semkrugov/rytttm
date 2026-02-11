@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useMotionValue, PanInfo } from "framer-motion";
 import {
@@ -42,7 +42,7 @@ const MONTH_NAMES = [
   "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
   "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
 ];
-const DAYS_RANGE = 90;
+const DAYS_RANGE = 365;
 
 function getDatesAround(centerOffset = 0) {
   const dates: { date: Date; day: number; weekday: string }[] = [];
@@ -132,7 +132,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
   const [editSelectedTime, setEditSelectedTime] = useState({ hour: 12, minute: 0 });
   const [editDateOffset, setEditDateOffset] = useState(0);
   const [editSaving, setEditSaving] = useState(false);
-  const editDateOptions = getDatesAround(editDateOffset);
+  const editDateOptions = useMemo(() => getDatesAround(0), []);
   const editDateDragX = useMotionValue(0);
 
   const [members, setMembers] = useState<ProjectMember[]>([]);
@@ -529,9 +529,9 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
         leftSlot={
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center active:opacity-80 transition-opacity"
+            className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center active:opacity-80 transition-opacity"
           >
-            <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} />
+            <ArrowLeft className="w-5 h-5 text-[#151617]" strokeWidth={2} />
           </button>
         }
         rightSlot={
@@ -586,7 +586,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
             )}
           </div>
           <motion.div
-            className="flex w-full h-11 rounded-[10px] p-[3px] relative bg-[#1E1F22]"
+            className="flex w-full h-11 rounded-[14px] p-[3px] relative bg-[#1E1F22]"
             initial={false}
           >
             {(["todo", "doing", "done"] as const).map((status) => {
@@ -596,7 +596,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                   key={status}
                   type="button"
                   onClick={() => handleQuickStatusChange(status)}
-                  className={`relative flex-1 h-full rounded-[8px] text-[14px] font-medium transition-colors z-10 ${
+                  className={`relative flex-1 h-full rounded-[12px] text-[14px] font-medium transition-colors z-10 ${
                     isActive ? "text-white" : "text-[#9097A7]"
                   }`}
                   whileTap={{ scale: 0.98 }}
@@ -606,7 +606,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                   {isActive && (
                     <motion.div
                       layoutId="activeTaskDetailStatusTab"
-                      className="absolute inset-0 rounded-[8px] -z-10"
+                      className="absolute inset-0 rounded-[12px] -z-10"
                       style={{
                         background:
                           "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
@@ -786,7 +786,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                       }}
                       whileTap={{ scale: 0.97 }}
                       transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                      className={`flex-1 py-2.5 px-3 rounded-[10px] text-[14px] font-medium transition-colors ${
+                      className={`flex-1 py-2.5 px-3 rounded-[14px] text-[14px] font-medium transition-colors ${
                         editStatus === status
                           ? "bg-[#6CC2FF] text-white"
                           : "bg-[#28292D] text-[#9097A7]"
@@ -861,7 +861,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                         dragConstraints={{ left: 0, right: 0 }}
                         dragElastic={0.2}
                         onDragEnd={handleEditDateDragEnd}
-                        animate={{ x: -editDateOffset * 56 }}
+                        animate={{ x: -(DAYS_RANGE + editDateOffset) * 56 }}
                         style={{ x: editDateDragX }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className="flex gap-2"
@@ -883,7 +883,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                               }}
                               whileTap={{ scale: 0.95 }}
                               transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                              className={`flex-shrink-0 flex flex-col items-center py-2 px-3 rounded-[10px] min-w-[48px] transition-colors duration-200 ${
+                              className={`flex-shrink-0 flex flex-col items-center py-2 px-3 rounded-[14px] min-w-[48px] transition-colors duration-200 ${
                                 isSelected ? "bg-[#6CC2FF] text-white" : "bg-[#28292D] text-[#9097A7]"
                               }`}
                             >
@@ -922,7 +922,7 @@ export default function TaskDetailPageClient({ taskId }: TaskDetailPageClientPro
                         setEditSelectedTime({ hour: h, minute: m });
                       }}
                       disabled={editNoDeadline}
-                      className="px-3 py-2 rounded-[10px] bg-[#28292D] text-white text-[14px] outline-none disabled:opacity-50"
+                      className="px-3 py-2 rounded-[14px] bg-[#28292D] text-white text-[14px] outline-none disabled:opacity-50"
                     />
                     <label className="flex items-center gap-2 cursor-pointer ml-auto">
                       <input

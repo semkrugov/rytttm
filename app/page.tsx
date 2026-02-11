@@ -464,7 +464,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => router.push("/tasks")}
-                      className="text-[16px] font-normal text-[#6CC2FF]"
+                      className="text-[14px] font-normal text-[#6CC2FF]"
                     >
                       Все задачи
                     </button>
@@ -497,7 +497,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => router.push("/projects")}
-                      className="text-[16px] font-normal text-[#6CC2FF]"
+                      className="text-[14px] font-normal text-[#6CC2FF]"
                     >
                       Все проекты
                     </button>
@@ -523,7 +523,7 @@ export default function Home() {
                         СКОРО
                       </span>
                     </div>
-                    <span className="text-[16px] font-normal text-[#6B7280]">
+                    <span className="text-[14px] font-normal text-[#6B7280]">
                       Все встречи
                     </span>
                   </div>

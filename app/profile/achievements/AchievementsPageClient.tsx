@@ -199,9 +199,9 @@ export default function AchievementsPageClient() {
                 haptics.light();
                 router.back();
               }}
-              className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80 flex items-center justify-center"
+              className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center active:opacity-80 transition-opacity"
             >
-              <ArrowLeft className="w-5 h-5 text-[var(--tg-theme-text-color)]" strokeWidth={2} />
+              <ArrowLeft className="w-5 h-5 text-[#151617]" strokeWidth={2} />
             </button>
           }
         />

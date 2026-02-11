@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -62,9 +63,34 @@ export const POST = async (request: NextRequest) => {
     const body = await request.json();
     console.log("--- RAW UPDATE ---", body);
 
+    const chatMemberUpdate = body.chat_member;
+    if (chatMemberUpdate) {
+      const chat = chatMemberUpdate.chat;
+      const chatId = chat?.id;
+      const chatTitle = chat?.title || `Chat ${chatId}`;
+      const memberUser = chatMemberUpdate.new_chat_member?.user;
+      const memberStatus = chatMemberUpdate.new_chat_member?.status as string | undefined;
+
+      const isJoinedStatus = memberStatus === "member" || memberStatus === "administrator" || memberStatus === "creator";
+
+      if (chatId && memberUser?.id && isJoinedStatus) {
+        const projectId = await ensureProject(chatId, chatTitle);
+        if (projectId) {
+          const profileId = await ensureProfile(memberUser.id, memberUser);
+          if (profileId) {
+            await ensureProjectMember(projectId, profileId);
+            console.log(`[BOT] User ${profileId} auto-added to project ${projectId} after chat join`);
+          }
+        }
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
     // Получаем chat_id и text
     const chatId = body.message?.chat?.id;
     const text = body.message?.text;
+    const chatType = body.message?.chat?.type;
 
     // Если нет текста, пропускаем
     if (!text || !chatId) {
@@ -74,6 +100,51 @@ export const POST = async (request: NextRequest) => {
     // Получаем данные пользователя из сообщения
     const telegramUserId = body.message.from?.id;
     if (!telegramUserId) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Обработка инвайта: /start inv_<token> в личном чате
+    if (chatType === "private" && text.startsWith("/start inv_")) {
+      const token = text.slice("/start inv_".length).trim();
+      const invitedProjectId = verifyInviteToken(token);
+
+      if (!invitedProjectId) {
+        await sendTelegramMessage(chatId, "Ссылка приглашения недействительна или устарела.");
+        return NextResponse.json({ ok: true });
+      }
+
+      const userProfileId = await ensureProfile(telegramUserId, body.message.from);
+      if (!userProfileId) {
+        await sendTelegramMessage(chatId, "Не удалось обработать приглашение. Попробуйте позже.");
+        return NextResponse.json({ ok: true });
+      }
+
+      const { data: projectExists } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("id", invitedProjectId)
+        .maybeSingle();
+
+      if (!projectExists) {
+        await sendTelegramMessage(chatId, "Проект по этой ссылке не найден.");
+        return NextResponse.json({ ok: true });
+      }
+
+      const chatJoinLink = await getProjectChatJoinLink(invitedProjectId);
+      if (!chatJoinLink) {
+        await sendTelegramMessage(
+          chatId,
+          "Не удалось получить ссылку на чат проекта. Попроси администратора пригласить тебя вручную."
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      await sendTelegramMessageWithButton(
+        chatId,
+        "Нажми кнопку ниже и вступи в чат проекта. После вступления ты автоматически появишься в участниках проекта в Mini App.",
+        "Вступить в чат проекта",
+        chatJoinLink
+      );
       return NextResponse.json({ ok: true });
     }
 
@@ -154,6 +225,169 @@ export const POST = async (request: NextRequest) => {
     return NextResponse.json({ ok: true });
   }
 };
+
+function getInviteSecret(): string | null {
+  return process.env.INVITE_SIGNING_SECRET || process.env.TELEGRAM_BOT_TOKEN || null;
+}
+
+function verifyInviteToken(token: string): string | null {
+  const secret = getInviteSecret();
+  if (!secret) return null;
+
+  const [payloadBase64, providedSignature] = token.split(".");
+  if (!payloadBase64 || !providedSignature) return null;
+
+  const expectedSignature = createHmac("sha256", secret)
+    .update(payloadBase64)
+    .digest("base64url");
+
+  const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+  const providedBuffer = Buffer.from(providedSignature, "utf8");
+  if (
+    expectedBuffer.length !== providedBuffer.length ||
+    !timingSafeEqual(expectedBuffer, providedBuffer)
+  ) {
+    return null;
+  }
+
+  const decoded = Buffer.from(payloadBase64, "base64url").toString("utf8");
+  const [projectId, expiresAtRaw] = decoded.split(":");
+  const expiresAt = Number(expiresAtRaw);
+
+  if (!projectId || !expiresAt || Number.isNaN(expiresAt)) return null;
+  if (expiresAt < Math.floor(Date.now() / 1000)) return null;
+
+  return projectId;
+}
+
+async function sendTelegramMessage(chatId: number, text: string): Promise<void> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+      }),
+    });
+  } catch (error) {
+    console.error("[BOT] Failed to send Telegram message:", error);
+  }
+}
+
+async function sendTelegramMessageWithButton(
+  chatId: number,
+  text: string,
+  buttonText: string,
+  buttonUrl: string
+): Promise<void> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        reply_markup: {
+          inline_keyboard: [[{ text: buttonText, url: buttonUrl }]],
+        },
+      }),
+    });
+  } catch (error) {
+    console.error("[BOT] Failed to send Telegram message with button:", error);
+  }
+}
+
+async function getProjectChatJoinLink(projectId: string): Promise<string | null> {
+  const { data: project, error } = await supabase
+    .from("projects")
+    .select("telegram_chat_id")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (error || !project?.telegram_chat_id) {
+    console.error("[BOT] Failed to load project telegram_chat_id for invite:", error);
+    return null;
+  }
+
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return null;
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/createChatInviteLink`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: project.telegram_chat_id,
+        creates_join_request: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("[BOT] createChatInviteLink http error:", response.status, text);
+      return await getPublicChatUrl(project.telegram_chat_id);
+    }
+
+    const result = (await response.json()) as {
+      ok: boolean;
+      result?: { invite_link?: string };
+      description?: string;
+    };
+
+    if (!result.ok || !result.result?.invite_link) {
+      console.error("[BOT] createChatInviteLink failed:", result.description);
+      return await getPublicChatUrl(project.telegram_chat_id);
+    }
+
+    return result.result.invite_link;
+  } catch (error) {
+    console.error("[BOT] Failed to create chat invite link:", error);
+    return await getPublicChatUrl(project.telegram_chat_id);
+  }
+}
+
+async function getPublicChatUrl(chatId: number): Promise<string | null> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return null;
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/getChat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("[BOT] getChat http error:", response.status, text);
+      return null;
+    }
+
+    const result = (await response.json()) as {
+      ok: boolean;
+      result?: { username?: string };
+      description?: string;
+    };
+
+    const username = result.result?.username;
+    if (!result.ok || !username) {
+      console.error("[BOT] getChat has no public username:", result.description);
+      return null;
+    }
+
+    return `https://t.me/${username}`;
+  } catch (error) {
+    console.error("[BOT] Failed to resolve public chat URL:", error);
+    return null;
+  }
+}
 
 /**
  * Создает проект, если его еще нет, и возвращает его UUID

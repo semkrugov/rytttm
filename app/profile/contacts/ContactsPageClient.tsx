@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import WebApp from "@twa-dev/sdk";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -71,16 +72,21 @@ export default function ContactsPageClient() {
     return DEMO_CONTACTS.filter((c) => c.username.toLowerCase().includes(q));
   }, [searchQuery]);
 
-  const copyInviteLink = async () => {
+  const shareInviteLink = async () => {
+    const shareText = "Присоединяйся к rytttm в Telegram";
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(BOT_INVITE_URL)}&text=${encodeURIComponent(shareText)}`;
+
     try {
-      await navigator.clipboard.writeText(BOT_INVITE_URL);
-      haptics.success();
-      if (typeof window !== "undefined" && (window as unknown as { Telegram?: { WebApp?: { showPopup?: (o: { title?: string; message?: string }) => void } } }).Telegram?.WebApp?.showPopup) {
-        (window as unknown as { Telegram: { WebApp: { showPopup: (o: { title: string; message: string }) => void } } }).Telegram.WebApp.showPopup({
-          title: t("contacts.linkCopied"),
-          message: t("contacts.linkCopiedMessage"),
-        });
+      if (WebApp?.openTelegramLink) {
+        WebApp.openTelegramLink(shareUrl);
+        haptics.success();
+        return;
       }
+
+      if (typeof window !== "undefined") {
+        window.open(shareUrl, "_blank", "noopener,noreferrer");
+      }
+      haptics.success();
     } catch {
       haptics.medium();
     }
@@ -100,9 +106,9 @@ export default function ContactsPageClient() {
                 haptics.light();
                 router.back();
               }}
-              className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80 flex items-center justify-center"
+              className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center active:opacity-80 transition-opacity"
             >
-              <ArrowLeft className="w-5 h-5 text-[var(--tg-theme-text-color)]" strokeWidth={2} />
+              <ArrowLeft className="w-5 h-5 text-[#151617]" strokeWidth={2} />
             </button>
           }
         />
@@ -132,7 +138,7 @@ export default function ContactsPageClient() {
               type="button"
               onClick={() => {
                 haptics.light();
-                copyInviteLink();
+                shareInviteLink();
               }}
               className="w-full flex items-center gap-3 px-4 py-4 border-b border-[#28292D] text-left"
             >

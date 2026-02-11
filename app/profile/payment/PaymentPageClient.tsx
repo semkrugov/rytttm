@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -22,6 +22,8 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { haptics } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { useTelegramAuth } from "@/hooks/useTelegramAuth";
 
 type PaymentMethod = "card" | "phone" | "wallet";
 
@@ -31,11 +33,31 @@ const DEMO_HISTORY = [
   { id: "3", label: "SYNC", status: null, date: "" },
 ];
 
-const MOCK_MEMBERS = [
-  { id: 1, name: "Anna_designer", role: "Designer", color: "bg-[#FF7E5F]", avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Anna" },
-  { id: 2, name: "Godofprogramming", role: "Developer", color: "bg-[#FACC15]" },
-  { id: 3, name: "SMM_King", role: "Manager", color: "bg-[#6CC2FF]" },
-  { id: 4, name: "Elena_PM", role: "Marketing", color: "bg-[#BE87D8]" },
+type TeamContact = {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  color: string;
+};
+
+const FALLBACK_COLORS = [
+  "bg-[#FF7E5F]",
+  "bg-[#FACC15]",
+  "bg-[#6CC2FF]",
+  "bg-[#BE87D8]",
+  "bg-[#34D399]",
+];
+
+function getFallbackColor(seed: string): string {
+  const sum = seed.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return FALLBACK_COLORS[sum % FALLBACK_COLORS.length];
+}
+
+const MOCK_MEMBERS: TeamContact[] = [
+  { id: "demo-anna", name: "Anna_designer", color: "bg-[#FF7E5F]", avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Anna" },
+  { id: "demo-god", name: "Godofprogramming", color: "bg-[#FACC15]" },
+  { id: "demo-smm", name: "SMM_King", color: "bg-[#6CC2FF]" },
+  { id: "demo-elena", name: "Elena_PM", color: "bg-[#BE87D8]" },
 ];
 
 const REFERRAL_URL = "https://rytttm.com/van_tolk";
@@ -43,15 +65,115 @@ const REFERRAL_URL = "https://rytttm.com/van_tolk";
 export default function PaymentPageClient() {
   const router = useRouter();
   const { t } = useLanguage();
+  const { user, isDemoMode } = useTelegramAuth();
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [autoPay, setAutoPay] = useState(false);
   const [showRolesInfo, setShowRolesInfo] = useState(false);
   const [showMemberSelect, setShowMemberSelect] = useState(false);
   const [selectionType, setSelectionType] = useState<"full" | "member">("full");
-  const [fullAccessIds, setFullAccessIds] = useState<number[]>([1]); 
-  const [memberAccessIds, setMemberAccessIds] = useState<number[]>([]);
+  const [contacts, setContacts] = useState<TeamContact[]>(MOCK_MEMBERS);
+  const [fullAccessIds, setFullAccessIds] = useState<string[]>(["demo-anna"]);
+  const [memberAccessIds, setMemberAccessIds] = useState<string[]>([]);
 
-  const toggleMemberSelection = (id: number) => {
+  const contactById = useMemo(
+    () => new Map(contacts.map((contact) => [contact.id, contact])),
+    [contacts]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSharedContacts = async () => {
+      if (isDemoMode || !user?.id) {
+        if (!cancelled) {
+          setContacts(MOCK_MEMBERS);
+          setFullAccessIds((prev) => (prev.length > 0 ? prev : ["demo-anna"]));
+        }
+        return;
+      }
+
+      try {
+        const { data: myMemberships, error: membershipsError } = await supabase
+          .from("project_members")
+          .select("project_id")
+          .eq("user_id", user.id);
+
+        if (membershipsError) throw membershipsError;
+
+        const projectIds = Array.from(
+          new Set((myMemberships || []).map((row: { project_id: string }) => row.project_id))
+        );
+
+        if (projectIds.length === 0) {
+          if (!cancelled) {
+            setContacts([]);
+            setFullAccessIds([]);
+            setMemberAccessIds([]);
+          }
+          return;
+        }
+
+        const { data: sharedMembers, error: sharedMembersError } = await supabase
+          .from("project_members")
+          .select("user_id, profiles(username, avatar_url)")
+          .in("project_id", projectIds)
+          .neq("user_id", user.id);
+
+        if (sharedMembersError) throw sharedMembersError;
+
+        const uniqueContacts = new Map<string, TeamContact>();
+
+        (sharedMembers || []).forEach(
+          (row: {
+            user_id: string;
+            profiles?:
+              | { username: string | null; avatar_url: string | null }
+              | Array<{ username: string | null; avatar_url: string | null }>
+              | null;
+          }) => {
+            if (uniqueContacts.has(row.user_id)) return;
+            const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+            const username = profile?.username || "User";
+            uniqueContacts.set(row.user_id, {
+              id: row.user_id,
+              name: username,
+              avatarUrl: profile?.avatar_url || null,
+              color: getFallbackColor(row.user_id),
+            });
+          }
+        );
+
+        const loadedContacts = Array.from(uniqueContacts.values()).sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+
+        if (!cancelled) {
+          setContacts(loadedContacts);
+
+          const allowed = new Set(loadedContacts.map((contact) => contact.id));
+          setFullAccessIds((prev) => prev.filter((id) => allowed.has(id)));
+          setMemberAccessIds((prev) => prev.filter((id) => allowed.has(id)));
+
+          if (loadedContacts.length > 0) {
+            setFullAccessIds((prev) => (prev.length > 0 ? prev : [loadedContacts[0].id]));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load shared contacts for payment roles:", error);
+        if (!cancelled) {
+          setContacts([]);
+        }
+      }
+    };
+
+    void loadSharedContacts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoMode, user?.id]);
+
+  const toggleMemberSelection = (id: string) => {
     haptics.selection();
     const setIds = selectionType === "full" ? setFullAccessIds : setMemberAccessIds;
     setIds((prev) => 
@@ -82,9 +204,9 @@ export default function PaymentPageClient() {
                 haptics.light();
                 router.back();
               }}
-              className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80 flex items-center justify-center"
+              className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center active:opacity-80 transition-opacity"
             >
-              <ArrowLeft className="w-5 h-5 text-[var(--tg-theme-text-color)]" strokeWidth={2} />
+              <ArrowLeft className="w-5 h-5 text-[#151617]" strokeWidth={2} />
             </button>
           }
         />
@@ -131,7 +253,7 @@ export default function PaymentPageClient() {
             <h2 className="text-[11px] font-medium uppercase tracking-wider text-[#9097A7] mb-3">
               {t("payment.method")}
             </h2>
-            <div className="flex gap-2 p-1 rounded-[12px] bg-[#1E1F22]">
+            <motion.div className="flex gap-2 p-1 rounded-[12px] bg-[#1E1F22]" initial={false}>
               {(
                 [
                   { id: "card" as const, key: "payment.card", icon: CreditCard },
@@ -139,7 +261,7 @@ export default function PaymentPageClient() {
                   { id: "wallet" as const, key: "payment.wallet", icon: Wallet },
                 ] as const
               ).map(({ id, key, icon: Icon }) => (
-                <button
+                <motion.button
                   key={id}
                   type="button"
                   onClick={() => {
@@ -147,17 +269,28 @@ export default function PaymentPageClient() {
                     setMethod(id);
                   }}
                   className={cn(
-                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[10px] text-[14px] font-medium transition-colors",
-                    method === id
-                      ? "bg-[#28292D] text-white"
-                      : "text-[#9097A7]"
+                    "relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[10px] text-[14px] font-medium transition-colors",
+                    method === id ? "text-white" : "text-[#9097A7]"
                   )}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <Icon className="w-4 h-4" />
                   {t(key)}
-                </button>
+                  {method === id && (
+                    <motion.div
+                      layoutId="activePaymentMethodTab"
+                      className="absolute inset-0 rounded-[10px] -z-10"
+                      style={{
+                        background: "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
+                      }}
+                      initial={false}
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                </motion.button>
               ))}
-            </div>
+            </motion.div>
 
             {method === "phone" && (
               <div className="mt-4 rounded-[14px] bg-[#1E1F22] p-4">
@@ -256,7 +389,7 @@ export default function PaymentPageClient() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center -space-x-2">
                     {fullAccessIds.map(id => {
-                      const m = MOCK_MEMBERS.find(mem => mem.id === id);
+                      const m = contactById.get(id);
                       if (!m) return null;
                       return m.avatarUrl ? (
                         <img key={id} src={m.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border-2 border-[#1E1F22] z-10" />
@@ -287,7 +420,7 @@ export default function PaymentPageClient() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center -space-x-2">
                     {memberAccessIds.map(id => {
-                      const m = MOCK_MEMBERS.find(mem => mem.id === id);
+                      const m = contactById.get(id);
                       if (!m) return null;
                       return m.avatarUrl ? (
                         <img key={id} src={m.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border-2 border-[#1E1F22] z-10" />
@@ -447,13 +580,14 @@ export default function PaymentPageClient() {
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed left-4 right-4 top-1/2 -translate-y-1/2 z-50 bg-[#1E1F22] rounded-[20px] p-5 max-h-[85vh] overflow-y-auto shadow-xl"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-[#1E1F22] rounded-t-[20px] max-h-[85vh] overflow-hidden shadow-xl"
+              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between px-4 py-4 border-b border-[#28292D] flex-shrink-0">
                 <h3 className="text-[20px] font-bold text-white">{t("payment.roles.title")}</h3>
                 <button
                   onClick={() => setShowRolesInfo(false)}
@@ -462,47 +596,49 @@ export default function PaymentPageClient() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              
-              <p className="text-[14px] text-[#9097A7] leading-relaxed mb-6">
-                {t("payment.roles.desc")}
-              </p>
 
-              <div className="space-y-6">
-                {/* Member */}
-                <div>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <h4 className="text-[16px] font-bold text-white">{t("payment.roles.member")}</h4>
-                    <span className="text-[13px] text-[#585B62]">{t("payment.roles.memberSub")}</span>
-                  </div>
-                  <ul className="space-y-2">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="block w-1 h-1 rounded-full bg-white mt-2 flex-shrink-0" />
-                        <span className="text-[14px] text-[#CCCCCC] leading-snug">
-                          {t(`payment.roles.member.${i}`)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              <div className="overflow-y-auto max-h-[calc(85vh-72px)] px-5 py-5">
+                <p className="text-[14px] text-[#9097A7] leading-relaxed mb-6">
+                  {t("payment.roles.desc")}
+                </p>
 
-                {/* Manager */}
-                <div>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <h4 className="text-[16px] font-bold text-white">{t("payment.roles.manager")}</h4>
-                    <span className="text-[13px] text-[#585B62]">{t("payment.roles.managerSub")}</span>
+                <div className="space-y-6">
+                  {/* Member */}
+                  <div>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <h4 className="text-[16px] font-bold text-white">{t("payment.roles.member")}</h4>
+                      <span className="text-[13px] text-[#585B62]">{t("payment.roles.memberSub")}</span>
+                    </div>
+                    <ul className="space-y-2">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="block w-1 h-1 rounded-full bg-white mt-2 flex-shrink-0" />
+                          <span className="text-[14px] text-[#CCCCCC] leading-snug">
+                            {t(`payment.roles.member.${i}`)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <p className="text-[14px] text-white mb-2">{t("payment.roles.manager.desc")}</p>
-                  <ul className="space-y-2">
-                    {[1, 2, 3].map((i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="block w-1 h-1 rounded-full bg-white mt-2 flex-shrink-0" />
-                        <span className="text-[14px] text-[#CCCCCC] leading-snug">
-                          {t(`payment.roles.manager.${i}`)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+
+                  {/* Manager */}
+                  <div>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <h4 className="text-[16px] font-bold text-white">{t("payment.roles.manager")}</h4>
+                      <span className="text-[13px] text-[#585B62]">{t("payment.roles.managerSub")}</span>
+                    </div>
+                    <p className="text-[14px] text-white mb-2">{t("payment.roles.manager.desc")}</p>
+                    <ul className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="block w-1 h-1 rounded-full bg-white mt-2 flex-shrink-0" />
+                          <span className="text-[14px] text-[#CCCCCC] leading-snug">
+                            {t(`payment.roles.manager.${i}`)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -542,7 +678,7 @@ export default function PaymentPageClient() {
               
               <div className="overflow-y-auto max-h-[calc(70vh-60px)] pb-20">
                 <div className="divide-y divide-[#28292D]">
-                  {MOCK_MEMBERS.map((member) => {
+                  {contacts.map((member) => {
                     const currentSelected = selectionType === "full" ? fullAccessIds : memberAccessIds;
                     const isSelected = currentSelected.includes(member.id);
                     return (
@@ -560,8 +696,6 @@ export default function PaymentPageClient() {
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="text-[16px] font-medium text-white">{member.name}</div>
-                          {/* <div className="text-[13px] text-[#9097A7]">{member.role}</div> */} 
-                          {/* Screenshot shows only name, but role is useful. Keeping name prominent. */}
                         </div>
                         
                         {/* Selection Indicator */}
@@ -574,6 +708,11 @@ export default function PaymentPageClient() {
                       </button>
                     );
                   })}
+                  {contacts.length === 0 && (
+                    <div className="px-4 py-5 text-sm text-[#9097A7]">
+                      Контактов пока нет. Контакты появятся после участия в общих проектах/чатах.
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -13,8 +13,8 @@ interface AppHeaderProps {
 
 export default function AppHeader({ leftSlot, rightSlot, title }: AppHeaderProps) {
   return (
-    <div className="h-[60px] flex items-center justify-center gap-0 px-[18px] py-0">
-      <div className="w-10 h-10 shrink-0 flex items-center justify-center ml-[10px]">
+    <div className="h-[70px] flex items-center justify-center gap-0 px-[18px] py-0">
+      <div className="w-10 h-10 shrink-0 flex items-center justify-center">
         {leftSlot ?? (
           <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80" />
         )}
@@ -32,7 +32,7 @@ export default function AppHeader({ leftSlot, rightSlot, title }: AppHeaderProps
           />
         )}
       </div>
-      <div className="w-10 h-10 shrink-0 flex items-center justify-center mr-[10px]">
+      <div className="w-10 h-10 shrink-0 flex items-center justify-center">
         {rightSlot ?? (
           <div className="w-10 h-10 rounded-full bg-[var(--tg-theme-secondary-bg-color)]/80" />
         )}

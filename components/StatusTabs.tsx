@@ -65,7 +65,7 @@ export default function StatusTabs(
     return (
       <div className={cn("flex items-center gap-2 w-full", !embedded && "mb-4")}>
         <motion.div
-          className="flex w-full h-11 rounded-[10px] p-[3px] relative bg-[#1E1F22]"
+          className="flex w-full h-11 rounded-[14px] p-[3px] relative bg-[#1E1F22]"
           initial={false}
         >
           {tasksFilterValues.map((value) => {
@@ -75,7 +75,7 @@ export default function StatusTabs(
                 key={value}
                 onClick={() => handleTabClick(value)}
                 className={cn(
-                  "relative flex-1 h-full rounded-[8px] text-[14px] font-medium transition-colors z-10",
+                  "relative flex-1 h-full rounded-[12px] text-[14px] font-medium transition-colors z-10",
                   isActive ? "text-white" : "text-[#9097A7]"
                 )}
                 whileTap={{ scale: 0.98 }}
@@ -85,7 +85,7 @@ export default function StatusTabs(
                 {isActive && (
                   <motion.div
                     layoutId="activeTasksTab"
-                    className="absolute inset-0 rounded-[8px] -z-10"
+                    className="absolute inset-0 rounded-[12px] -z-10"
                     style={{
                       background: "linear-gradient(90deg, #C3CBFF 0%, #F6B3FF 100%)",
                     }}

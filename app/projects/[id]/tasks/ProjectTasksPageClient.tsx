@@ -227,9 +227,9 @@ export default function ProjectTasksPageClient({ projectId }: ProjectTasksPageCl
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="w-10 h-10 rounded-full bg-[#1E1F22] flex items-center justify-center"
+                className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center active:opacity-80 transition-opacity"
               >
-                <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} />
+                <ArrowLeft className="w-5 h-5 text-[#151617]" strokeWidth={2} />
               </button>
             }
           />
