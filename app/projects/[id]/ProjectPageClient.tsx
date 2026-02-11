@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import WebApp from "@twa-dev/sdk";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -229,8 +228,11 @@ export default function ProjectPageClient({ projectId }: ProjectPageClientProps)
     const openShareUrl = (shareUrl: string) => {
       if (typeof window === "undefined") return;
 
-      if (WebApp?.openTelegramLink) {
-        WebApp.openTelegramLink(shareUrl);
+      const tgWebApp =
+        (window as unknown as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } }).Telegram?.WebApp ?? null;
+
+      if (tgWebApp?.openTelegramLink) {
+        tgWebApp.openTelegramLink(shareUrl);
         return;
       }
 

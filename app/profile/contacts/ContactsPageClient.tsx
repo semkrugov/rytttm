@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import WebApp from "@twa-dev/sdk";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -77,8 +76,13 @@ export default function ContactsPageClient() {
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(BOT_INVITE_URL)}&text=${encodeURIComponent(shareText)}`;
 
     try {
-      if (WebApp?.openTelegramLink) {
-        WebApp.openTelegramLink(shareUrl);
+      const tgWebApp =
+        typeof window !== "undefined"
+          ? ((window as unknown as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } }).Telegram?.WebApp ?? null)
+          : null;
+
+      if (tgWebApp?.openTelegramLink) {
+        tgWebApp.openTelegramLink(shareUrl);
         haptics.success();
         return;
       }
